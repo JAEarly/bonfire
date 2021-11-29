@@ -20,5 +20,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
     ],
-    packages=setuptools.find_packages(include=['pytorch-mil']),
+    packages=setuptools.find_packages(include=['pytorch_mil']),
 )
