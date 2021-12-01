@@ -43,12 +43,15 @@ class FullyConnectedStack(nn.Module):
 
     def __init__(self, d_in, ds_hid, d_out, dropout, raw_last):
         super().__init__()
-        n_blocks = len(ds_hid) + 1
+        self.d_in = d_in
+        self.ds_hid = ds_hid
+        self.d_out = d_out
+        self.n_blocks = len(ds_hid) + 1
         blocks = []
-        for i in range(n_blocks):
+        for i in range(self.n_blocks):
             in_size = d_in if i == 0 else ds_hid[i - 1]
-            out_size = d_out if i == n_blocks - 1 else ds_hid[i]
-            blocks.append(FullyConnectedBlock(in_size, out_size, dropout, raw_last and i == n_blocks - 1))
+            out_size = d_out if i == self.n_blocks - 1 else ds_hid[i]
+            blocks.append(FullyConnectedBlock(in_size, out_size, dropout, raw_last and i == self.n_blocks - 1))
         self.stack = nn.Sequential(*blocks)
 
     def forward(self, x):
@@ -72,6 +75,23 @@ class AttentionBlock(nn.Module):
         attn = torch.transpose(attn, 1, 0)
         bag_embedding = torch.mm(attn, x)
         bag_embedding = self.dropout(bag_embedding)
+        return bag_embedding, attn
+
+
+class MultiHeadAttentionBlock(nn.Module):
+
+    def __init__(self, n_heads, d_in, d_attn, dropout):
+        super().__init__()
+        self.n_heads = n_heads
+        self.heads = nn.ModuleList([AttentionBlock(d_in, d_attn, dropout=dropout) for _ in range(self.n_heads)])
+
+    def forward(self, x):
+        # Pass input through each head
+        head_outs = [head(x) for head in self.heads]
+        # Concatenate bag representations from each head
+        bag_embedding = torch.cat([h[0] for h in head_outs], dim=1)
+        # Stack attention outputs from each head
+        attn = torch.stack([h[1].squeeze() for h in head_outs])
         return bag_embedding, attn
 
 

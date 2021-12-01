@@ -6,14 +6,14 @@ import argparse
 device = get_device()
 
 DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tef']
-MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'GNN']
+MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'GNN']
 
 
 def parse_args():
     # TODO add arguments for seed(s) and n_repeats
     parser = argparse.ArgumentParser(description='Builtin PyTorch MIL training script.')
     parser.add_argument('dataset_name', choices=DATASET_NAMES, help='The dataset to use.')
-    parser.add_argument('model_name', choices=MODEL_NAMES, help='The dataset to use.')
+    parser.add_argument('model_name', choices=MODEL_NAMES, help='The model to train.')
     parser.add_argument('-m', '--multiple', action='store_true', default=False,
                         help='Train multiple models rather than just one.')
     args = parser.parse_args()
@@ -41,6 +41,7 @@ def get_model_and_trainer_clz(dataset_name, model_name):
         model_clz = tef_models.get_model_clz_from_name(model_name)
         trainer_clz = SivalTrainer.get_trainer_clz_from_model_clz(model_clz)
         return model_clz, trainer_clz
+    raise ValueError('No trainer found for dataset {:s}'.format(dataset_name))
 
 
 def run_training(dataset_name, model_name, multiple=False):

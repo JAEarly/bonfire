@@ -56,3 +56,16 @@ class AttentionAggregator(Aggregator):
         bag_embedding, attn = self.attention_aggregator(instance_embeddings)
         bag_prediction = self.embedding_classifier(bag_embedding)
         return bag_prediction, attn
+
+
+class MultiHeadAttentionAggregator(Aggregator):
+
+    def __init__(self, n_heads, d_in, ds_hid, d_attn, n_classes, dropout):
+        super().__init__()
+        self.attention_aggregator = mod.MultiHeadAttentionBlock(n_heads, d_in, d_attn, dropout)
+        self.embedding_classifier = mod.FullyConnectedStack(n_heads * d_in, ds_hid, n_classes, dropout, raw_last=True)
+
+    def forward(self, instance_embeddings):
+        bag_embedding, attn = self.attention_aggregator(instance_embeddings)
+        bag_prediction = self.embedding_classifier(bag_embedding)
+        return bag_prediction, attn
