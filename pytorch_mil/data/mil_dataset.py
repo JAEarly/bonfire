@@ -7,6 +7,9 @@ from torch_geometric.data import Data
 from torch_geometric.utils import dense_to_sparse
 
 
+# TODO Make ABC and add abstract method to compute the mean.
+# TODO remove geometric stuff and extend to GraphMilDataset
+# TODO create abstract setup function for each dataset
 class MilDataset(Dataset):
 
     def __init__(self, bags, targets, instance_targets):
