@@ -1,13 +1,13 @@
 import optuna.visualization as viz
 from optuna.trial import TrialState
 
-from tuning.tune_util import load_study, generate_figure
+from pytorch_mil.tune.tune_util import load_study, generate_figure
 import numpy as np
 
 
 def run():
     maxmise = True
-    study = load_study("Optimise-CrcAttentionNN", "2021-09-22-12.53.55",
+    study = load_study("Optimise-MultiHeadAttentionNN", "2021-12-01-16.11.12",
                        direction='maximize' if maxmise else 'minimize')
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])

@@ -1,13 +1,13 @@
 import argparse
 
-from pytorch_mil.tune import crc_tuning, mnist_tuning, sival_tuning
+from pytorch_mil.tune import sival_tuning  #crc_tuning, mnist_tuning, sival_tuning
 from pytorch_mil.tune.tune_util import setup_study
-from pytorch_mil.util import get_device
+from pytorch_mil.util.misc_util import get_device
 
 device = get_device()
 
 DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tef']
-MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'GNN']
+MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN']
 
 
 def parse_args():

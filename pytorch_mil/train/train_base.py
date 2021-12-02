@@ -13,35 +13,22 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from texttable import Texttable
 from torch import nn
 from tqdm import tqdm
+import yaml
+from pytorch_mil.util import yaml_util
 
 
 class Trainer(ABC):
 
-    def __init__(self, device, n_classes, save_dir, train_params):
+    def __init__(self, device, n_classes, n_expected_dims, model_clz, save_dir, yaml_path, model_yobj=None):
         self.device = device
         self.n_classes = n_classes
+        self.n_expected_dims = n_expected_dims
         self.save_dir = save_dir
-        self.train_params = train_params
-        self.update_train_params(self.get_default_train_params())
-
-    @abstractmethod
-    def create_optimizer(self, model):
-        pass
-
-    @abstractmethod
-    def get_criterion(self):
-        pass
+        self.model_clz = model_clz
+        self.model_yobj = self.parse_model_yobj(yaml_path, model_yobj)
 
     @abstractmethod
     def load_datasets(self, seed=None):
-        pass
-
-    @abstractmethod
-    def create_model(self):
-        pass
-
-    @abstractmethod
-    def get_model_name(self):
         pass
 
     @abstractmethod
@@ -53,13 +40,34 @@ class Trainer(ABC):
     def get_trainer_clz_from_model_clz(model_clz):
         pass
 
-    def get_train_param(self, key):
-        return self.train_params[key]
+    def get_model_name(self):
+        return self.model_clz.__name__
 
-    def update_train_params(self, new_params, override=False):
-        for key, value in new_params.items():
-            if override or key not in self.train_params:
-                self.train_params[key] = value
+    def create_optimizer(self, model):
+        lr = self.get_train_param('lr')
+        weight_decay = self.get_train_param('wd')
+        return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
+
+    def create_model(self):
+        return self.model_clz.from_yaml_obj(self.device, self.n_classes, self.n_expected_dims, self.model_yobj)
+
+    def get_criterion(self):
+        return nn.CrossEntropyLoss()
+
+    def parse_model_yobj(self, yaml_path, model_yobj):
+        with open(yaml_path, 'r') as f:
+            yaml_dict = yaml.safe_load(f)
+            parent_yobj = yaml_util.create_yaml_obj(yaml_dict)
+            default_model_yobj = getattr(parent_yobj, self.model_clz.__name__)
+        if model_yobj is not None:
+            yaml_util.override_yaml_obj(default_model_yobj, model_yobj)
+        return default_model_yobj
+
+    def get_train_param(self, key):
+        try:
+            return float(getattr(self.model_yobj.TrainParams, key))
+        except AttributeError:
+            return self.get_default_train_params()[key]
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
@@ -78,9 +86,6 @@ class Trainer(ABC):
         return epoch_train_loss, epoch_val_metrics
 
     def train_model(self, model, train_dataloader, val_dataloader, trial=None):
-        # Override current parameters with model suggested parameters
-        self.update_train_params(model.suggest_train_params(), override=True)
-
         model.to(self.device)
         model.train()
 
