@@ -63,6 +63,17 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
 
 class InstanceEncoder(nn.Module):
 
+    @staticmethod
+    def from_yaml_obj(y):
+        if y.type == 'conv':
+            return ConvInstanceEncoder.from_yaml_obj(y)
+        elif y.type == 'flat':
+            return FlatInstanceEncoder.from_yaml_obj(y)
+        raise ValueError('Invalid encoder type {:s}'.format(y.type))
+
+
+class FlatInstanceEncoder(nn.Module):
+
     def __init__(self, d_in, ds_hid, d_out, dropout):
         super().__init__()
         self.stack = mod.FullyConnectedStack(d_in, ds_hid, d_out, dropout, raw_last=False)
@@ -72,7 +83,55 @@ class InstanceEncoder(nn.Module):
 
     @staticmethod
     def from_yaml_obj(y):
-        return InstanceEncoder(y.d_in, y.ds_hid, y.d_out, y.dropout)
+        return FlatInstanceEncoder(y.d_in, y.ds_hid, y.d_out, y.dropout)
+
+
+class ConvInstanceEncoder(nn.Module):
+
+    def __init__(self, d_fv, ds_hid, d_out, dropout):
+        super().__init__()
+        conv1 = mod.ConvBlock(c_in=1, c_out=20, kernel_size=5, stride=1, padding=0, dropout=dropout)
+        conv2 = mod.ConvBlock(c_in=20, c_out=50, kernel_size=5, stride=1, padding=0, dropout=dropout)
+        self.fe = nn.Sequential(conv1, conv2)
+        self.fc_stack = mod.FullyConnectedStack(d_fv, ds_hid, d_out, dropout, raw_last=False)
+
+    def forward(self, instances):
+        x = self.fe(instances)
+        x = x.view(x.size(0), -1)
+        x = self.fc_stack(x)
+        return x
+
+    @staticmethod
+    def from_yaml_obj(y):
+        return ConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
+
+
+class EmbeddingSpaceNN(MultipleInstanceNN):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims)
+        self.encoder = encoder
+        self.aggregator = aggregator
+
+    def forward_verbose(self, bags):
+        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
+        for i, instances in enumerate(bags):
+            # Embed instances
+            instances = instances.to(self.device)
+            instance_embeddings = self.encoder(instances)
+
+            # Classify instances and aggregate
+            bag_prediction, _ = self.aggregator(instance_embeddings)
+
+            # Update outputs
+            bag_predictions[i] = bag_prediction
+        return bag_predictions, None
+
+    @staticmethod
+    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
+        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
+        aggregator = agg.EmbeddingAggregator.from_yaml_obj(model_yobj.Aggregator)
+        return EmbeddingSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator)
 
 
 class InstanceSpaceNN(MultipleInstanceNN):
@@ -103,34 +162,6 @@ class InstanceSpaceNN(MultipleInstanceNN):
         encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
         aggregator = agg.InstanceAggregator.from_yaml_obj(model_yobj.Aggregator)
         return InstanceSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator)
-
-
-class EmbeddingSpaceNN(MultipleInstanceNN):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
-        super().__init__(device, n_classes, n_expec_dims)
-        self.encoder = encoder
-        self.aggregator = aggregator
-
-    def forward_verbose(self, bags):
-        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
-        for i, instances in enumerate(bags):
-            # Embed instances
-            instances = instances.to(self.device)
-            instance_embeddings = self.encoder(instances)
-
-            # Classify instances and aggregate
-            bag_prediction, _ = self.aggregator(instance_embeddings)
-
-            # Update outputs
-            bag_predictions[i] = bag_prediction
-        return bag_predictions, None
-
-    @staticmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
-        aggregator = agg.EmbeddingAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return EmbeddingSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator)
 
 
 class AttentionNN(MultipleInstanceNN):

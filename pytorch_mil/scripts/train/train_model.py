@@ -1,5 +1,5 @@
 from pytorch_mil.model import base_models  # crc_models, mnist_models, musk_models, tef_models, base_models
-from pytorch_mil.train import SivalTrainer  #CrcTrainer, MnistTrainer, MuskTrainer, SivalTrainer
+from pytorch_mil.train import SivalTrainer, MnistTrainer #CrcTrainer, , MuskTrainer, SivalTrainer
 from pytorch_mil.util.misc_util import get_device
 import argparse
 
@@ -26,7 +26,7 @@ def get_model_and_trainer_clz(dataset_name, model_name):
         trainer_clz = CrcTrainer.get_trainer_clz_from_model_clz(model_clz)
         return model_clz, trainer_clz
     if dataset_name == 'mnist':
-        model_clz = mnist_models.get_model_clz_from_name(model_name)
+        model_clz = base_models.get_model_clz_from_name(model_name)
         trainer_clz = MnistTrainer.get_trainer_clz_from_model_clz(model_clz)
         return model_clz, trainer_clz
     if dataset_name == 'musk':

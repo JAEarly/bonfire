@@ -1,0 +1,80 @@
+---
+# ------
+# Model configuration for MNIST
+# ------
+
+d_fv: 800
+n_classes: 4
+n_expec_dims: 4
+
+EmbeddingSpaceNN:
+  Encoder:
+    type: conv
+    d_fv: ${d_fv}
+    ds_hid: [128]
+    d_out: 512
+    dropout: ${EmbeddingSpaceNN.TrainParams.dropout}
+  Aggregator:
+    d_in: ${EmbeddingSpaceNN.Encoder.d_out}
+    ds_hid: []
+    n_classes: ${n_classes}
+    dropout: ${EmbeddingSpaceNN.TrainParams.dropout}
+    agg_func_name: max
+  TrainParams:
+    lr: 1e-4
+    wd: 1e-3
+    dropout: 0.3
+
+InstanceSpaceNN:
+  Encoder:
+    type: conv
+    d_fv: ${d_fv}
+    ds_hid: []
+    d_out: 512
+    dropout: ${InstanceSpaceNN.TrainParams.dropout}
+  Aggregator:
+    d_in: ${InstanceSpaceNN.Encoder.d_out}
+    ds_hid: [128, 64]
+    n_classes: ${n_classes}
+    dropout: ${InstanceSpaceNN.TrainParams.dropout}
+    agg_func_name: mean
+  TrainParams:
+    lr: 1e-4
+    wd: 1e-4
+    dropout: 0.3
+
+AttentionNN:
+  Encoder:
+    type: conv
+    d_fv: ${d_fv}
+    ds_hid: [64]
+    d_out: 256
+    dropout: ${AttentionNN.TrainParams.dropout}
+  Aggregator:
+    n_heads: 1
+    d_in: ${AttentionNN.Encoder.d_out}
+    ds_hid: [64]
+    d_attn: 256
+    n_classes: ${n_classes}
+    dropout: ${AttentionNN.TrainParams.dropout}
+  TrainParams:
+    lr: 1e-4
+    wd: 1e-4
+    dropout: 0.15
+
+ClusterGNN:
+  Encoder:
+    type: conv
+    d_fv: ${d_fv}
+    ds_hid: [64]
+    d_out: 64
+    dropout: ${ClusterGNN.TrainParams.dropout}
+  GNN:
+    d_enc: ${ClusterGNN.Encoder.d_out}
+    d_gnn: 128
+    ds_gnn_hid: [128, 128]
+    ds_fc_hid: [64]
+  TrainParams:
+    lr: 5e-5
+    wd: 1e-5
+    dropout: 0.3

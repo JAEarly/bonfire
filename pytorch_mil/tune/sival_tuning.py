@@ -30,6 +30,7 @@ class SivalTuner(Tuner, ABC):
     def generate_encoder(self, trial, dropout):
         d_enc = trial.suggest_categorical('d_enc', [64, 128, 256, 512])
         encoder = SimpleNamespace(
+            type='flat',
             d_out=d_enc,
             ds_hid=self.suggest_layers(trial, "enc_hid", 0, 2, [64, 128, 256]),
             dropout=dropout

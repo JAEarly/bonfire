@@ -1,56 +1,37 @@
 from abc import ABC
 
-import torch
-from torch import nn
 from torch.utils.data import DataLoader
 
-from pytorch_mil.data.mnist_bags import create_andmil_datasets, MNIST_N_CLASSES
-from pytorch_mil.model.mnist_models import MnistGNN
+from pytorch_mil.data.mnist_bags import create_andmil_datasets, MNIST_N_CLASSES, MNIST_N_EXPECTED_DIMS
+from pytorch_mil.model.base_models import ClusterGNN
 from pytorch_mil.train.train_base import Trainer
 from pytorch_mil.train.train_util import GraphDataloader
 
 
 class MnistTrainer(Trainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, MNIST_N_CLASSES, "models/mnist", train_params)
-        self.model_clz = model_clz
-        self.model_params = model_params
-
-    def create_model(self):
-        if self.model_params is not None:
-            return self.model_clz(self.device, **self.model_params)
-        return self.model_clz(self.device)
-
-    def get_model_name(self):
-        return self.model_clz.__name__
-
-    def create_optimizer(self, model):
-        lr = self.get_train_param('lr')
-        weight_decay = self.get_train_param('weight_decay')
-        return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
-
-    def get_criterion(self):
-        return nn.CrossEntropyLoss()
+    def __init__(self, device, model_clz, model_yobj=None):
+        super().__init__(device, MNIST_N_CLASSES, MNIST_N_EXPECTED_DIMS, model_clz,
+                         "models/mnist", "config/mnist_models.yaml", model_yobj)
 
     def get_default_train_params(self):
         return {
+            'lr': 1e-5,
+            'wd': 1e-3,
             'n_epochs': 100,
             'patience': 10,
-            'lr': 1e-5,
-            'weight_decay': 1e-3,
         }
 
     @staticmethod
     def get_trainer_clz_from_model_clz(model_clz):
-        return MnistGNNTrainer if model_clz == MnistGNN else MnistNetTrainer
+        return MnistGNNTrainer if model_clz == ClusterGNN else MnistNetTrainer
 
 
 class MnistNetTrainer(MnistTrainer):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, train_params, model_clz, model_params=model_params)
-        assert model_clz != MnistGNN
+    def __init__(self, device, model_clz, model_yobj=None):
+        super().__init__(device, model_clz, model_yobj=model_yobj)
+        assert model_clz != ClusterGNN
 
     def load_datasets(self, seed=None):
         train_dataset, val_dataset, test_dataset = create_andmil_datasets(random_state=seed)
@@ -62,9 +43,9 @@ class MnistNetTrainer(MnistTrainer):
 
 class MnistGNNTrainer(MnistTrainer):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, train_params, model_clz, model_params=model_params)
-        assert model_clz == MnistGNN
+    def __init__(self, device, model_clz, model_yobj=None):
+        super().__init__(device, model_clz, model_yobj=model_yobj)
+        assert model_clz == ClusterGNN
 
     def load_datasets(self, seed=None):
         train_dataset, val_dataset, test_dataset = create_andmil_datasets(random_state=seed)

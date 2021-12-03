@@ -1,6 +1,6 @@
 import argparse
 
-from pytorch_mil.tune import sival_tuning  #crc_tuning, mnist_tuning, sival_tuning
+from pytorch_mil.tune import sival_tuning, mnist_tuning  #crc_tuning, mnist_tuning, sival_tuning
 from pytorch_mil.tune.tune_util import setup_study
 from pytorch_mil.util.misc_util import get_device
 

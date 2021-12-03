@@ -12,7 +12,7 @@ class SivalTrainer(Trainer, ABC):
 
     def __init__(self, device, model_clz, model_yobj=None):
         super().__init__(device, SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS, model_clz,
-                         "models/sival", "models/sival_models.yaml", model_yobj)
+                         "models/sival", "config/sival_models.yaml", model_yobj)
 
     def get_default_train_params(self):
         return {
