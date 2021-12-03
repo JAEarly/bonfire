@@ -6,16 +6,19 @@ from pytorch_mil.model import base_models
 
 class Tuner(ABC):
 
-    def __init__(self, device, model_clz, trainer_clz):
+    def __init__(self, device, model_clz, trainer_clz, dataset_name):
         self.device = device
         self.model_clz = model_clz
         self.trainer_clz = trainer_clz
+        self.dataset_name = dataset_name
 
     @abstractmethod
     def generate_model_yobj(self, trial):
         pass
 
     def create_trainer(self, model_yobj):
+        if self.dataset_name in ['tiger', 'elephant', 'fox']:
+            return self.trainer_clz(self.device, self.model_clz, self.dataset_name, model_yobj=model_yobj)
         return self.trainer_clz(self.device, self.model_clz, model_yobj=model_yobj)
 
     @staticmethod
@@ -56,8 +59,8 @@ class Tuner(ABC):
 
 class EmbeddingSpaceNNTuner(Tuner):
 
-    def __init__(self, device, trainer_clz):
-        super().__init__(device, base_models.EmbeddingSpaceNN, trainer_clz)
+    def __init__(self, device, trainer_clz, dataset_name):
+        super().__init__(device, base_models.EmbeddingSpaceNN, trainer_clz, dataset_name)
 
     def generate_model_yobj(self, trial):
         train_params = self.generate_train_params(trial)
@@ -78,8 +81,8 @@ class EmbeddingSpaceNNTuner(Tuner):
 
 class InstanceSpaceNNTuner(Tuner):
 
-    def __init__(self, device, trainer_clz):
-        super().__init__(device, base_models.InstanceSpaceNN, trainer_clz)
+    def __init__(self, device, trainer_clz, dataset_name):
+        super().__init__(device, base_models.InstanceSpaceNN, trainer_clz, dataset_name)
 
     def generate_model_yobj(self, trial):
         train_params = self.generate_train_params(trial)
@@ -100,8 +103,8 @@ class InstanceSpaceNNTuner(Tuner):
 
 class AttentionNNTuner(Tuner):
 
-    def __init__(self, device, trainer_clz):
-        super().__init__(device, base_models.AttentionNN, trainer_clz)
+    def __init__(self, device, trainer_clz, dataset_name):
+        super().__init__(device, base_models.AttentionNN, trainer_clz, dataset_name)
 
     def generate_model_yobj(self, trial):
         train_params = self.generate_train_params(trial)
@@ -122,8 +125,8 @@ class AttentionNNTuner(Tuner):
 
 class MultiHeadAttentionNNTuner(Tuner):
 
-    def __init__(self, device, trainer_clz):
-        super().__init__(device, base_models.MultiHeadAttentionNN, trainer_clz)
+    def __init__(self, device, trainer_clz, dataset_name):
+        super().__init__(device, base_models.MultiHeadAttentionNN, trainer_clz, dataset_name)
 
     def generate_model_yobj(self, trial):
         train_params = self.generate_train_params(trial)
@@ -149,8 +152,8 @@ class MultiHeadAttentionNNTuner(Tuner):
 
 class ClusterGNNTuner(Tuner):
 
-    def __init__(self, device, trainer_clz):
-        super().__init__(device, base_models.ClusterGNN, trainer_clz)
+    def __init__(self, device, trainer_clz, dataset_name):
+        super().__init__(device, base_models.ClusterGNN, trainer_clz, dataset_name)
 
     def generate_model_yobj(self, trial):
         train_params = self.generate_train_params(trial)

@@ -1,39 +1,21 @@
 from abc import ABC
 
-import torch
-from torch import nn
+from pytorch_mil.model.base_models import ClusterGNN
 from torch.utils.data import DataLoader
 
-from pytorch_mil.data.musk_dataset import create_datasets, MUSK_N_CLASSES
-from pytorch_mil.model.musk_models import MuskGNN
+from pytorch_mil.data.musk_dataset import create_datasets, MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS
 from pytorch_mil.train.train_base import Trainer
 from pytorch_mil.train.train_util import GraphDataloader
 
 
 class MuskTrainer(Trainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, musk_two=False, model_params=None):
+    def __init__(self, device, model_clz, model_yobj=None, musk_two=False):
         save_dir = "models/musk2" if musk_two else "models/musk1"
-        super().__init__(device, MUSK_N_CLASSES, save_dir, train_params)
-        self.model_clz = model_clz
-        self.model_params = model_params
+        model_config_path = "config/musk1_models.yaml"
+        super().__init__(device, MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS, model_clz,
+                         save_dir, model_config_path, model_yobj)
         self.musk_two = musk_two
-
-    def create_model(self):
-        if self.model_params is not None:
-            return self.model_clz(self.device, **self.model_params)
-        return self.model_clz(self.device)
-
-    def get_model_name(self):
-        return self.model_clz.__name__
-
-    def create_optimizer(self, model):
-        lr = self.get_train_param('lr')
-        weight_decay = self.get_train_param('weight_decay')
-        return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
-
-    def get_criterion(self):
-        return nn.CrossEntropyLoss()
 
     def get_default_train_params(self):
         return {
@@ -44,15 +26,15 @@ class MuskTrainer(Trainer, ABC):
         }
 
     @staticmethod
-    def get_trainer_clz_from_model_clz(model_clz):
-        return MuskGNNTrainer if model_clz == MuskGNN else MuskNetTrainer
+    def get_trainer_clz_from_model_name(model_name):
+        return MuskGNNTrainer if model_name == 'ClusterGNN' else MuskNetTrainer
 
 
 class MuskNetTrainer(MuskTrainer):
 
-    def __init__(self, device, train_params, model_clz, musk_two=False, model_params=None):
-        super().__init__(device, train_params, model_clz, musk_two=musk_two, model_params=model_params)
-        assert model_clz != MuskGNN
+    def __init__(self, device, model_clz, model_yobj=None, musk_two=False):
+        super().__init__(device, model_clz, model_yobj=model_yobj, musk_two=musk_two)
+        assert model_clz != ClusterGNN
 
     def load_datasets(self, seed=None):
         train_dataset, val_dataset, test_dataset = create_datasets(musk_two=self.musk_two, random_state=seed)
@@ -64,9 +46,9 @@ class MuskNetTrainer(MuskTrainer):
 
 class MuskGNNTrainer(MuskTrainer):
 
-    def __init__(self, device, train_params, model_clz, musk_two=False, model_params=None):
-        super().__init__(device, train_params, model_clz, musk_two=musk_two, model_params=model_params)
-        assert model_clz == MuskGNN
+    def __init__(self, device, model_clz, model_yobj=None, musk_two=False):
+        super().__init__(device, model_clz, model_yobj=model_yobj, musk_two=musk_two)
+        assert model_clz == ClusterGNN
 
     def load_datasets(self, seed=None):
         train_dataset, val_dataset, test_dataset = create_datasets(musk_two=self.musk_two, random_state=seed)

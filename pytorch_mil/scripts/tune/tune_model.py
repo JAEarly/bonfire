@@ -6,7 +6,7 @@ from pytorch_mil.util.misc_util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tef']
+DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN']
 
 
@@ -21,8 +21,7 @@ def parse_args():
 def make_tuner(dataset_name, model_name):
     trainer_clz = get_trainer_clz(dataset_name, model_name)
     tuner_clz = get_tuner_clz(model_name)
-    print(trainer_clz, tuner_clz)
-    return tuner_clz(device, trainer_clz)
+    return tuner_clz(device, trainer_clz, dataset_name)
 
 
 def run_tuning(dataset_name, model_name):

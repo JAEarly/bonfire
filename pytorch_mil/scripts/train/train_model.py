@@ -6,7 +6,7 @@ from pytorch_mil.util.misc_util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tef']
+DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN']
 
 
@@ -28,7 +28,12 @@ def run_training(dataset_name, model_name, multiple=False):
     print('  Training {:s}'.format("multiple models" if multiple else "single model"))
     model_clz = base_models.get_model_clz_from_name(model_name)
     trainer_clz = get_trainer_clz(dataset_name, model_name)
-    trainer = trainer_clz(device, model_clz)
+
+    if dataset_name in ['tiger', 'elephant', 'fox']:
+        trainer = trainer_clz(device, model_clz, dataset_name)
+    else:
+        trainer = trainer_clz(device, model_clz)
+
     if multiple:
         trainer.train_multiple()
     else:
