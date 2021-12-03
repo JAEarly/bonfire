@@ -65,9 +65,11 @@ class InstanceEncoder(nn.Module):
 
     @staticmethod
     def from_yaml_obj(y):
-        if y.type == 'conv':
-            return ConvInstanceEncoder.from_yaml_obj(y)
-        elif y.type == 'flat':
+        if y.type == 'mnist_conv':
+            return MnistConvInstanceEncoder.from_yaml_obj(y)
+        if y.type == 'crc_conv':
+            return CRCConvInstanceEncoder.from_yaml_obj(y)
+        if y.type == 'flat':
             return FlatInstanceEncoder.from_yaml_obj(y)
         raise ValueError('Invalid encoder type {:s}'.format(y.type))
 
@@ -86,7 +88,7 @@ class FlatInstanceEncoder(nn.Module):
         return FlatInstanceEncoder(y.d_in, y.ds_hid, y.d_out, y.dropout)
 
 
-class ConvInstanceEncoder(nn.Module):
+class MnistConvInstanceEncoder(nn.Module):
 
     def __init__(self, d_fv, ds_hid, d_out, dropout):
         super().__init__()
@@ -103,7 +105,27 @@ class ConvInstanceEncoder(nn.Module):
 
     @staticmethod
     def from_yaml_obj(y):
-        return ConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
+        return MnistConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
+
+
+class CRCConvInstanceEncoder(nn.Module):
+
+    def __init__(self, d_fv, ds_hid, d_out, dropout):
+        super().__init__()
+        conv1 = mod.ConvBlock(c_in=3, c_out=36, kernel_size=4, stride=1, padding=0, dropout=dropout)
+        conv2 = mod.ConvBlock(c_in=36, c_out=48, kernel_size=3, stride=1, padding=0, dropout=dropout)
+        self.fe = nn.Sequential(conv1, conv2)
+        self.fc_stack = mod.FullyConnectedStack(d_fv, ds_hid, d_out, dropout, raw_last=False)
+
+    def forward(self, instances):
+        x = self.fe(instances)
+        x = x.view(x.size(0), -1)
+        x = self.fc_stack(x)
+        return x
+
+    @staticmethod
+    def from_yaml_obj(y):
+        return CRCConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
 
 
 class EmbeddingSpaceNN(MultipleInstanceNN):

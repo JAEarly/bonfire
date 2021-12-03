@@ -1,7 +1,7 @@
 import argparse
 
-from pytorch_mil.tune import sival_tuning, mnist_tuning  #crc_tuning, mnist_tuning, sival_tuning
-from pytorch_mil.tune.tune_util import setup_study
+from pytorch_mil.train import get_trainer_clz
+from pytorch_mil.tune.tune_util import setup_study, get_tuner_clz
 from pytorch_mil.util.misc_util import get_device
 
 device = get_device()
@@ -18,27 +18,19 @@ def parse_args():
     return args.dataset_name, args.model_name
 
 
-def get_tuner_clz(dataset_name, model_name):
-    if dataset_name == 'crc':
-        return crc_tuning.get_tuner_from_name(model_name)
-    if dataset_name == 'mnist':
-        return mnist_tuning.get_tuner_from_name(model_name)
-    if dataset_name == 'musk':
-        raise NotImplementedError
-    if dataset_name == 'sival':
-        return sival_tuning.get_tuner_from_name(model_name)
-    if dataset_name == 'tef':
-        raise NotImplementedError
-    raise ValueError("No tuner found for datasets {:s}".format(dataset_name))
+def make_tuner(dataset_name, model_name):
+    trainer_clz = get_trainer_clz(dataset_name, model_name)
+    tuner_clz = get_tuner_clz(model_name)
+    print(trainer_clz, tuner_clz)
+    return tuner_clz(device, trainer_clz)
 
 
 def run_tuning(dataset_name, model_name):
     print('Starting {:s} tuning'.format(dataset_name))
     print('  Using model {:}'.format(model_name))
     print('  Using device {:}'.format(device))
-    tuner_clz = get_tuner_clz(dataset_name, model_name)
     study = setup_study("Optimise-{:s}".format(model_name))
-    tuner = tuner_clz(device)
+    tuner = make_tuner(dataset_name, model_name)
     study.optimize(tuner, n_trials=100)
 
 

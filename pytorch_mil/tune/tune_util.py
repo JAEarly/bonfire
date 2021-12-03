@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 
 import optuna
+from pytorch_mil.tune import tune_base
 
 TUNE_ROOT_DIR = "out/tune"
 
@@ -38,3 +39,17 @@ def generate_figure(plot_func, study, auto_open=True, **plot_args):
     name = plot_func.__name__
     name = name[name.index('_') + 1:]
     fig.write_html("{:s}/{:s}.html".format(study_path, name), auto_open=auto_open)
+
+
+def get_tuner_clz(model_name):
+    if model_name == 'EmbeddingSpaceNN':
+        return tune_base.EmbeddingSpaceNNTuner
+    if model_name == 'InstanceSpaceNN':
+        return tune_base.InstanceSpaceNNTuner
+    if model_name == 'AttentionNN':
+        return tune_base.AttentionNNTuner
+    if model_name == 'MultiHeadAttentionNN':
+        return tune_base.MultiHeadAttentionNNTuner
+    if model_name == 'ClusterGNN':
+        return tune_base.ClusterGNNTuner
+    raise ValueError('No tuner found for model {:s}'.format(model_name))

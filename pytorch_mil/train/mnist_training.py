@@ -23,8 +23,8 @@ class MnistTrainer(Trainer, ABC):
         }
 
     @staticmethod
-    def get_trainer_clz_from_model_clz(model_clz):
-        return MnistGNNTrainer if model_clz == ClusterGNN else MnistNetTrainer
+    def get_trainer_clz_from_model_name(model_name):
+        return MnistGNNTrainer if model_name == 'ClusterGNN' else MnistNetTrainer
 
 
 class MnistNetTrainer(MnistTrainer):

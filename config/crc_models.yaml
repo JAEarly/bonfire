@@ -1,80 +1,80 @@
 ---
 # ------
-# Model configuration for MNIST
+# Model configuration for CRC
 # ------
 
-d_fv: 800
-n_classes: 4
+d_fv: 1200
+n_classes: 2
 n_expec_dims: 4
 
 EmbeddingSpaceNN:
   Encoder:
-    type: mnist_conv
+    type: crc_conv
     d_fv: ${d_fv}
-    ds_hid: [128]
+    ds_hid: [64]
     d_out: 512
     dropout: ${EmbeddingSpaceNN.TrainParams.dropout}
   Aggregator:
     d_in: ${EmbeddingSpaceNN.Encoder.d_out}
-    ds_hid: []
+    ds_hid: [128, 64]
     n_classes: ${n_classes}
     dropout: ${EmbeddingSpaceNN.TrainParams.dropout}
     agg_func_name: max
   TrainParams:
-    lr: 1e-4
+    lr: 5e-4
     wd: 1e-3
     dropout: 0.3
 
 InstanceSpaceNN:
   Encoder:
-    type: mnist_conv
+    type: crc_conv
     d_fv: ${d_fv}
-    ds_hid: []
-    d_out: 512
+    ds_hid: [64]
+    d_out: 64
     dropout: ${InstanceSpaceNN.TrainParams.dropout}
   Aggregator:
     d_in: ${InstanceSpaceNN.Encoder.d_out}
-    ds_hid: [128, 64]
+    ds_hid: [64]
     n_classes: ${n_classes}
     dropout: ${InstanceSpaceNN.TrainParams.dropout}
     agg_func_name: mean
   TrainParams:
-    lr: 1e-4
-    wd: 1e-4
-    dropout: 0.3
+    lr: 5e-4
+    wd: 1e-3
+    dropout: 0.35
 
 AttentionNN:
   Encoder:
-    type: mnist_conv
+    type: crc_conv
     d_fv: ${d_fv}
-    ds_hid: [64]
+    ds_hid: [64, 64]
     d_out: 256
     dropout: ${AttentionNN.TrainParams.dropout}
   Aggregator:
     n_heads: 1
     d_in: ${AttentionNN.Encoder.d_out}
-    ds_hid: [64]
-    d_attn: 256
+    ds_hid: []
+    d_attn: 128
     n_classes: ${n_classes}
     dropout: ${AttentionNN.TrainParams.dropout}
   TrainParams:
-    lr: 1e-4
-    wd: 1e-4
-    dropout: 0.15
+    lr: 1e-3
+    wd: 1e-6
+    dropout: 0.2
 
 ClusterGNN:
   Encoder:
-    type: mnist_conv
+    type: crc_conv
     d_fv: ${d_fv}
     ds_hid: [64]
-    d_out: 64
+    d_out: 128
     dropout: ${ClusterGNN.TrainParams.dropout}
   GNN:
     d_enc: ${ClusterGNN.Encoder.d_out}
     d_gnn: 128
-    ds_gnn_hid: [128, 128]
-    ds_fc_hid: [64]
+    ds_gnn_hid: []
+    ds_fc_hid: [128]
   TrainParams:
-    lr: 5e-5
-    wd: 1e-5
-    dropout: 0.3
+    lr: 1e-3
+    wd: 1e-2
+    dropout: 0.35

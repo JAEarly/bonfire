@@ -1,7 +1,8 @@
-from pytorch_mil.model import base_models  # crc_models, mnist_models, musk_models, tef_models, base_models
-from pytorch_mil.train import SivalTrainer, MnistTrainer #CrcTrainer, , MuskTrainer, SivalTrainer
-from pytorch_mil.util.misc_util import get_device
 import argparse
+
+from pytorch_mil.model import base_models
+from pytorch_mil.train import get_trainer_clz
+from pytorch_mil.util.misc_util import get_device
 
 device = get_device()
 
@@ -20,36 +21,13 @@ def parse_args():
     return args.dataset_name, args.model_name, args.multiple
 
 
-def get_model_and_trainer_clz(dataset_name, model_name):
-    if dataset_name == 'crc':
-        model_clz = crc_models.get_model_clz_from_name(model_name)
-        trainer_clz = CrcTrainer.get_trainer_clz_from_model_clz(model_clz)
-        return model_clz, trainer_clz
-    if dataset_name == 'mnist':
-        model_clz = base_models.get_model_clz_from_name(model_name)
-        trainer_clz = MnistTrainer.get_trainer_clz_from_model_clz(model_clz)
-        return model_clz, trainer_clz
-    if dataset_name == 'musk':
-        model_clz = musk_models.get_model_clz_from_name(model_name)
-        trainer_clz = MuskTrainer.get_trainer_clz_from_model_clz(model_clz)
-        return model_clz, trainer_clz
-    if dataset_name == 'sival':
-        model_clz = base_models.get_model_clz_from_name(model_name)
-        trainer_clz = SivalTrainer.get_trainer_clz_from_model_clz(model_clz)
-        return model_clz, trainer_clz
-    if dataset_name == 'tef':
-        model_clz = tef_models.get_model_clz_from_name(model_name)
-        trainer_clz = SivalTrainer.get_trainer_clz_from_model_clz(model_clz)
-        return model_clz, trainer_clz
-    raise ValueError('No trainer found for dataset {:s}'.format(dataset_name))
-
-
 def run_training(dataset_name, model_name, multiple=False):
     print('Starting {:s} training'.format(dataset_name))
     print('  Using model {:}'.format(model_name))
     print('  Using device {:}'.format(device))
     print('  Training {:s}'.format("multiple models" if multiple else "single model"))
-    model_clz, trainer_clz = get_model_and_trainer_clz(dataset_name, model_name)
+    model_clz = base_models.get_model_clz_from_name(model_name)
+    trainer_clz = get_trainer_clz(dataset_name, model_name)
     trainer = trainer_clz(device, model_clz)
     if multiple:
         trainer.train_multiple()

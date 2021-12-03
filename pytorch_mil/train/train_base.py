@@ -37,7 +37,7 @@ class Trainer(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_trainer_clz_from_model_clz(model_clz):
+    def get_trainer_clz_from_model_name(model_clz):
         pass
 
     def get_model_name(self):

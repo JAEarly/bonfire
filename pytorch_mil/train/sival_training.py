@@ -23,8 +23,8 @@ class SivalTrainer(Trainer, ABC):
         }
 
     @staticmethod
-    def get_trainer_clz_from_model_clz(model_clz):
-        return SivalGNNTrainer if model_clz == ClusterGNN else SivalNetTrainer
+    def get_trainer_clz_from_model_name(model_name):
+        return SivalGNNTrainer if model_name == 'ClusterGNN' else SivalNetTrainer
 
 
 class SivalNetTrainer(SivalTrainer):
