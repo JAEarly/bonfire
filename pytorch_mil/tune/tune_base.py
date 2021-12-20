@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from types import SimpleNamespace
 
-from pytorch_mil.model import base_models
+from pytorch_mil.model import models
 
 
 class Tuner(ABC):

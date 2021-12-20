@@ -3,7 +3,7 @@ from abc import ABC
 from torch.utils.data import DataLoader
 
 from pytorch_mil.data.mnist_bags import create_andmil_datasets, MNIST_N_CLASSES, MNIST_N_EXPECTED_DIMS
-from pytorch_mil.model.base_models import ClusterGNN
+from pytorch_mil.model.models import ClusterGNN
 from pytorch_mil.train.train_base import Trainer
 from pytorch_mil.train.train_util import GraphDataloader
 

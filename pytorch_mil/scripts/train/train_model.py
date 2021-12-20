@@ -1,6 +1,6 @@
 import argparse
 
-from pytorch_mil.model import base_models
+from pytorch_mil.model import models
 from pytorch_mil.train import get_trainer_clz
 from pytorch_mil.util.misc_util import get_device
 
@@ -26,7 +26,7 @@ def run_training(dataset_name, model_name, multiple=False):
     print('  Using model {:}'.format(model_name))
     print('  Using device {:}'.format(device))
     print('  Training {:s}'.format("multiple models" if multiple else "single model"))
-    model_clz = base_models.get_model_clz_from_name(model_name)
+    model_clz = models.get_model_clz_from_name(model_name)
     trainer_clz = get_trainer_clz(dataset_name, model_name)
 
     if dataset_name in ['tiger', 'elephant', 'fox']:

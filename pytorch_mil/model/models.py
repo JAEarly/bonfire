@@ -8,29 +8,17 @@ from torch_geometric.nn import SAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
 
 from pytorch_mil.model import modules as mod, aggregator as agg
-
-
-def get_model_clz_from_name(model_name):
-    if model_name == 'InstanceSpaceNN':
-        return InstanceSpaceNN
-    if model_name == 'EmbeddingSpaceNN':
-        return EmbeddingSpaceNN
-    if model_name == 'AttentionNN':
-        return AttentionNN
-    if model_name == 'MultiHeadAttentionNN':
-        return MultiHeadAttentionNN
-    if model_name == 'ClusterGNN':
-        return ClusterGNN
-    raise ValueError("No model class found for model name {:s}".format(model_name))
+import os
 
 
 class MultipleInstanceModel(nn.Module, ABC):
 
-    def __init__(self, device, n_classes, n_expec_dims):
+    def __init__(self, device, n_classes, n_expec_dims, model_yobj):
         super().__init__()
         self.device = device
         self.n_classes = n_classes
         self.n_expec_dims = n_expec_dims
+        self.model_yobj = model_yobj
 
     @abstractmethod
     def forward(self, model_input):
@@ -38,6 +26,11 @@ class MultipleInstanceModel(nn.Module, ABC):
 
     @abstractmethod
     def forward_verbose(self, bags):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
         pass
 
 
@@ -131,8 +124,8 @@ class CRCConvInstanceEncoder(nn.Module):
 
 class EmbeddingSpaceNN(MultipleInstanceNN):
 
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
-        super().__init__(device, n_classes, n_expec_dims)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
+        super().__init__(device, n_classes, n_expec_dims, model_yobj)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -154,13 +147,13 @@ class EmbeddingSpaceNN(MultipleInstanceNN):
     def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
         encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
         aggregator = agg.EmbeddingAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return EmbeddingSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator)
+        return EmbeddingSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
 
 class InstanceSpaceNN(MultipleInstanceNN):
 
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
-        super().__init__(device, n_classes, n_expec_dims)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
+        super().__init__(device, n_classes, n_expec_dims, model_yobj)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -184,13 +177,13 @@ class InstanceSpaceNN(MultipleInstanceNN):
     def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
         encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
         aggregator = agg.InstanceAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return InstanceSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator)
+        return InstanceSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
 
 class AttentionNN(MultipleInstanceNN):
 
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
-        super().__init__(device, n_classes, n_expec_dims)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
+        super().__init__(device, n_classes, n_expec_dims, model_yobj)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -214,7 +207,7 @@ class AttentionNN(MultipleInstanceNN):
     def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
         encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
         aggregator = agg.MultiHeadAttentionAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return AttentionNN(device, n_classes, n_expec_dims, encoder, aggregator)
+        return AttentionNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
 
 # Still need to define this so it matches the YAML file, even though it does exactly the same as AttentionNN
@@ -225,8 +218,8 @@ class MultiHeadAttentionNN(AttentionNN):
 class ClusterGNN(MultipleInstanceModel):
 
     def __init__(self, device, n_classes, n_expec_dims, encoder,
-                 d_enc, d_gnn, ds_gnn_hid, ds_fc_hid, dropout):
-        super().__init__(device, n_classes, n_expec_dims)
+                 d_enc, d_gnn, ds_gnn_hid, ds_fc_hid, dropout, model_yobj):
+        super().__init__(device, n_classes, n_expec_dims, model_yobj)
         self.n_clusters = 1
         self.encoder = encoder
         self.gnn_stack = mod.GNNConvStack(d_enc, ds_gnn_hid, d_gnn, dropout, SAGEConv, raw_last=False)
@@ -296,4 +289,4 @@ class ClusterGNN(MultipleInstanceModel):
         encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
         y = model_yobj.GNN
         return ClusterGNN(device, n_classes, n_expec_dims, encoder, y.d_enc, y.d_gnn, y.ds_gnn_hid, y.ds_fc_hid,
-                          model_yobj.TrainParams.dropout)
+                          model_yobj.TrainParams.dropout, model_yobj)

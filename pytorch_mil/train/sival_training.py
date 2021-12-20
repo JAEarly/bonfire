@@ -2,17 +2,16 @@ from abc import ABC
 
 from torch.utils.data import DataLoader
 
-from pytorch_mil.data.sival.sival_dataset import create_datasets, SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS
-from pytorch_mil.model.base_models import ClusterGNN
+from pytorch_mil.data.sival.sival_dataset import create_datasets
+from pytorch_mil.model.models import ClusterGNN
 from pytorch_mil.train.train_base import Trainer
 from pytorch_mil.train.train_util import GraphDataloader
 
 
 class SivalTrainer(Trainer, ABC):
 
-    def __init__(self, device, model_clz, model_yobj=None):
-        super().__init__(device, SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS, model_clz,
-                         "models/sival", "config/sival_models.yaml", model_yobj)
+    def __init__(self, device, model_clz, model_yobj_override=None):
+        super().__init__(device, model_clz, "sival", model_yobj_override)
 
     def get_default_train_params(self):
         return {
@@ -29,8 +28,8 @@ class SivalTrainer(Trainer, ABC):
 
 class SivalNetTrainer(SivalTrainer):
 
-    def __init__(self, device, model_clz, model_yobj=None):
-        super().__init__(device, model_clz, model_yobj=model_yobj)
+    def __init__(self, device, model_clz, model_yobj_override=None):
+        super().__init__(device, model_clz, model_yobj_override=model_yobj_override)
         assert model_clz != ClusterGNN
 
     def load_datasets(self, seed=None):
@@ -43,8 +42,8 @@ class SivalNetTrainer(SivalTrainer):
 
 class SivalGNNTrainer(SivalTrainer):
 
-    def __init__(self, device, model_clz, model_yobj=None):
-        super().__init__(device, model_clz, model_yobj=model_yobj)
+    def __init__(self, device, model_clz, model_yobj_override=None):
+        super().__init__(device, model_clz, model_yobj_override=model_yobj_override)
         assert model_clz == ClusterGNN
 
     def load_datasets(self, seed=None):

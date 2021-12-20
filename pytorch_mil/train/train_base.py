@@ -1,31 +1,24 @@
 import copy
-import os
 from abc import ABC, abstractmethod
 
-import latextable
 import numpy as np
 import optuna
-import pandas as pd
 import torch
-import torch.nn.functional as F
 from matplotlib import pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix
-from texttable import Texttable
 from torch import nn
 from tqdm import tqdm
-import yaml
-from pytorch_mil.util import yaml_util
+
+from pytorch_mil.model import create_model, save_model
+from pytorch_mil.train.train_util import eval_complete, eval_model, output_results
 
 
 class Trainer(ABC):
 
-    def __init__(self, device, n_classes, n_expected_dims, model_clz, save_dir, yaml_path, model_yobj=None):
+    def __init__(self, device, model_clz, dataset_name, model_yobj_override=None):
         self.device = device
-        self.n_classes = n_classes
-        self.n_expected_dims = n_expected_dims
-        self.save_dir = save_dir
         self.model_clz = model_clz
-        self.model_yobj = self.parse_model_yobj(yaml_path, model_yobj)
+        self.model_yobj_override = model_yobj_override
+        self.dataset_name = dataset_name
 
     @abstractmethod
     def load_datasets(self, seed=None):
@@ -44,28 +37,16 @@ class Trainer(ABC):
         return self.model_clz.__name__
 
     def create_optimizer(self, model):
-        lr = self.get_train_param('lr')
-        weight_decay = self.get_train_param('wd')
+        lr = self.get_train_param('lr', model.model_yobj)
+        weight_decay = self.get_train_param('wd', model.model_yobj)
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
-
-    def create_model(self):
-        return self.model_clz.from_yaml_obj(self.device, self.n_classes, self.n_expected_dims, self.model_yobj)
 
     def get_criterion(self):
         return nn.CrossEntropyLoss()
 
-    def parse_model_yobj(self, yaml_path, model_yobj):
-        with open(yaml_path, 'r') as f:
-            yaml_dict = yaml.safe_load(f)
-            parent_yobj = yaml_util.create_yaml_obj(yaml_dict)
-            default_model_yobj = getattr(parent_yobj, self.model_clz.__name__)
-        if model_yobj is not None:
-            yaml_util.override_yaml_obj(default_model_yobj, model_yobj)
-        return default_model_yobj
-
-    def get_train_param(self, key):
+    def get_train_param(self, key, model_yobj):
         try:
-            return float(getattr(self.model_yobj.TrainParams, key))
+            return float(getattr(model_yobj.TrainParams, key))
         except AttributeError:
             return self.get_default_train_params()[key]
 
@@ -82,7 +63,7 @@ class Trainer(ABC):
             epoch_train_loss += loss.item()
         epoch_train_loss /= len(train_dataloader)
         epoch_train_loss = epoch_train_loss
-        epoch_val_metrics = self.eval_model(model, val_dataloader)
+        epoch_val_metrics = eval_model(model, val_dataloader)
         return epoch_train_loss, epoch_val_metrics
 
     def train_model(self, model, train_dataloader, val_dataloader, trial=None):
@@ -94,8 +75,8 @@ class Trainer(ABC):
 
         early_stopped = False
 
-        n_epochs = self.get_train_param('n_epochs')
-        patience = self.get_train_param('patience')
+        n_epochs = self.get_train_param('n_epochs', model)
+        patience = self.get_train_param('patience', model)
 
         train_losses = []
         val_metrics = []
@@ -139,21 +120,17 @@ class Trainer(ABC):
 
         return best_model, train_losses, val_metrics, early_stopped
 
-    def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
+    def train_single(self, seed=5, save=True, show_plot=True, verbose=True, trial=None):
         train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=seed)
-        model = self.create_model()
+        model = create_model(self.device, self.model_clz, self.dataset_name, self.model_yobj_override)
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
         best_model, train_losses, val_metrics, early_stopped = train_outputs
-        train_results, val_results, test_results = self.eval_complete(best_model, train_dataloader, val_dataloader,
-                                                                      test_dataloader, verbose=verbose)
+        train_results, val_results, test_results = eval_complete(best_model, train_dataloader, val_dataloader,
+                                                                 test_dataloader, verbose=verbose)
 
-        if save_model:
-            save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
-            print('Saving model to {:s}'.format(save_path))
-            if not os.path.exists(self.save_dir):
-                os.makedirs(self.save_dir)
-            torch.save(best_model.state_dict(), save_path)
+        if save:
+            save_model(best_model, self.get_model_name(), self.dataset_name)
 
         if show_plot:
             self.plot_training(train_losses, val_metrics)
@@ -164,10 +141,6 @@ class Trainer(ABC):
         print('Training model with repeats')
         np.random.seed(seed=seed)
 
-        model_save_dir = '{:s}/{:s}'.format(self.save_dir, self.get_model_name())
-        if not os.path.exists(model_save_dir):
-            os.makedirs(model_save_dir)
-
         # Train multiple models
         results = []
         for i in range(num_repeats):
@@ -175,75 +148,17 @@ class Trainer(ABC):
             repeat_seed = np.random.randint(low=1, high=1000)
             print('Seed: {:d}'.format(repeat_seed))
             train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=repeat_seed)
-            model = self.create_model()
+            model = create_model(self.device, self.model_clz, self.dataset_name, self.model_yobj_override)
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
-            final_results = self.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
-                                               verbose=False)
+            final_results = eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader, verbose=False)
             train_results, val_results, test_results = final_results
             results.append([train_results[0], train_results[1],
                             val_results[0], val_results[1],
                             test_results[0], test_results[1]])
-            torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
+            save_model(best_model, self.get_model_name(), self.dataset_name, repeat=i)
 
-        # Output results in table
-        results = np.asarray(results)
-        rows = [['Train Accuracy', 'Train Loss', 'Val Accuracy', 'Val Loss', 'Test Accuracy', 'Test Loss']]
-        results_row = []
-        for i in range(6):
-            values = results[:, i]
-            mean = np.mean(values)
-            sem = np.std(values) / np.sqrt(len(values))
-            results_row.append('{:.4f} +- {:.4f}'.format(mean, sem))
-        rows.append(results_row)
-        table = Texttable()
-        table.set_cols_dtype(['t'] * 6)
-        table.set_cols_align(['c'] * 6)
-        table.add_rows(rows)
-        table.set_max_width(0)
-        print(table.draw())
-        print(latextable.draw_latex(table))
-        print('Done!')
-
-    def eval_complete(self, model, train_dataloader, val_dataloader, test_dataloader, verbose=False):
-        if verbose:
-            print('\n-- Train Results --')
-        train_results = self.eval_model(model, train_dataloader, verbose=verbose)
-        if verbose:
-            print('\n-- Val Results --')
-        val_results = self.eval_model(model, val_dataloader, verbose=verbose)
-        if verbose:
-            print('\n-- Test Results --')
-        test_results = self.eval_model(model, test_dataloader, verbose=verbose)
-        return train_results, val_results, test_results
-
-    def eval_model(self, model, dataloader, verbose=False):
-        model.eval()
-        with torch.no_grad():
-            criterion = nn.CrossEntropyLoss()
-            labels = list(range(self.n_classes))
-            all_probas = []
-            all_targets = []
-            for data in dataloader:
-                bags, targets = data[0], data[1]
-                bag_probas = model(bags)
-                all_probas.append(bag_probas.detach().cpu())
-                all_targets.append(targets.detach().cpu())
-            all_targets = torch.cat(all_targets).long()
-            all_probas = torch.cat(all_probas)
-            _, all_preds = torch.max(F.softmax(all_probas, dim=1), dim=1)
-            acc = accuracy_score(all_targets, all_preds)
-            loss = criterion(all_probas, all_targets).item()
-            if verbose:
-                conf_mat = pd.DataFrame(
-                    confusion_matrix(all_targets, all_preds, labels=labels),
-                    index=pd.Index(labels, name='Actual'),
-                    columns=pd.Index(labels, name='Predicted')
-                )
-                print(' Acc: {:.3f}'.format(acc))
-                print('Loss: {:.3f}'.format(loss))
-                print(conf_mat)
-        return acc, loss
+        output_results(results)
 
     def plot_training(self, train_losses, val_metrics):
         fig, axes = plt.subplots(nrows=1, ncols=2)

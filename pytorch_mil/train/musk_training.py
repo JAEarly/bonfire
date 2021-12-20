@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.model.base_models import ClusterGNN
+from pytorch_mil.model.models import ClusterGNN
 from torch.utils.data import DataLoader
 
 from pytorch_mil.data.musk_dataset import create_datasets, MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS

@@ -9,7 +9,6 @@ class ConvBlock(nn.Module):
         conv = nn.Conv2d(c_in, c_out, kernel_size=kernel_size, stride=stride, padding=padding)
         relu = nn.ReLU()
         pool = nn.MaxPool2d(kernel_size=2)
-        # TODO dropout in conv block - good idea?
         if dropout != 0:
             dropout = nn.Dropout(p=dropout)
             self.block = nn.Sequential(conv, relu, pool, dropout)

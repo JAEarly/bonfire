@@ -27,10 +27,6 @@ dataset_std = torch.tensor([52.4034, 49.3811, 51.9998,  2.0022,  1.8713,  1.9941
                             1.6513,  1.5286, 57.2126, 53.9396, 54.1670,  1.8263,  1.5622,  1.5250,
                             57.0688, 53.7696, 53.3720,  1.6834,  1.6374,  1.5166])
 
-SIVAL_N_CLASSES = len(positive_clzs) + 1
-SIVAL_N_EXPECTED_DIMS = 2  # i * f
-SIVAL_D_IN = 30
-
 
 def clz_to_idx(clz_name):
     try:
