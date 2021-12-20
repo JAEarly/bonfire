@@ -7,18 +7,16 @@ from torch_geometric.data.data import Data
 from torch_geometric.nn import SAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
 
-from pytorch_mil.model import modules as mod, aggregator as agg
-import os
+from pytorch_mil.model import modules as mod
 
 
 class MultipleInstanceModel(nn.Module, ABC):
 
-    def __init__(self, device, n_classes, n_expec_dims, model_yobj):
+    def __init__(self, device, n_classes, n_expec_dims):
         super().__init__()
         self.device = device
         self.n_classes = n_classes
         self.n_expec_dims = n_expec_dims
-        self.model_yobj = model_yobj
 
     @abstractmethod
     def forward(self, model_input):
@@ -28,10 +26,8 @@ class MultipleInstanceModel(nn.Module, ABC):
     def forward_verbose(self, bags):
         pass
 
-    @staticmethod
-    @abstractmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        pass
+    def suggest_train_params(self):
+        return {}
 
 
 class MultipleInstanceNN(MultipleInstanceModel, ABC):
@@ -54,78 +50,10 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
         return bag_predictions
 
 
-class InstanceEncoder(nn.Module):
+class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
 
-    @staticmethod
-    def from_yaml_obj(y):
-        if y.type == 'mnist_conv':
-            return MnistConvInstanceEncoder.from_yaml_obj(y)
-        if y.type == 'crc_conv':
-            return CRCConvInstanceEncoder.from_yaml_obj(y)
-        if y.type == 'flat':
-            return FlatInstanceEncoder.from_yaml_obj(y)
-        raise ValueError('Invalid encoder type {:s}'.format(y.type))
-
-
-class FlatInstanceEncoder(nn.Module):
-
-    def __init__(self, d_in, ds_hid, d_out, dropout):
-        super().__init__()
-        self.stack = mod.FullyConnectedStack(d_in, ds_hid, d_out, dropout, raw_last=False)
-
-    def forward(self, x):
-        return self.stack(x)
-
-    @staticmethod
-    def from_yaml_obj(y):
-        return FlatInstanceEncoder(y.d_in, y.ds_hid, y.d_out, y.dropout)
-
-
-# TODO maybe break these out into a model specific file?
-class MnistConvInstanceEncoder(nn.Module):
-
-    def __init__(self, d_fv, ds_hid, d_out, dropout):
-        super().__init__()
-        conv1 = mod.ConvBlock(c_in=1, c_out=20, kernel_size=5, stride=1, padding=0, dropout=dropout)
-        conv2 = mod.ConvBlock(c_in=20, c_out=50, kernel_size=5, stride=1, padding=0, dropout=dropout)
-        self.fe = nn.Sequential(conv1, conv2)
-        self.fc_stack = mod.FullyConnectedStack(d_fv, ds_hid, d_out, dropout, raw_last=False)
-
-    def forward(self, instances):
-        x = self.fe(instances)
-        x = x.view(x.size(0), -1)
-        x = self.fc_stack(x)
-        return x
-
-    @staticmethod
-    def from_yaml_obj(y):
-        return MnistConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
-
-
-class CRCConvInstanceEncoder(nn.Module):
-
-    def __init__(self, d_fv, ds_hid, d_out, dropout):
-        super().__init__()
-        conv1 = mod.ConvBlock(c_in=3, c_out=36, kernel_size=4, stride=1, padding=0, dropout=dropout)
-        conv2 = mod.ConvBlock(c_in=36, c_out=48, kernel_size=3, stride=1, padding=0, dropout=dropout)
-        self.fe = nn.Sequential(conv1, conv2)
-        self.fc_stack = mod.FullyConnectedStack(d_fv, ds_hid, d_out, dropout, raw_last=False)
-
-    def forward(self, instances):
-        x = self.fe(instances)
-        x = x.view(x.size(0), -1)
-        x = self.fc_stack(x)
-        return x
-
-    @staticmethod
-    def from_yaml_obj(y):
-        return CRCConvInstanceEncoder(y.d_fv, y.ds_hid, y.d_out, y.dropout)
-
-
-class EmbeddingSpaceNN(MultipleInstanceNN):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
-        super().__init__(device, n_classes, n_expec_dims, model_yobj)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -143,17 +71,11 @@ class EmbeddingSpaceNN(MultipleInstanceNN):
             bag_predictions[i] = bag_prediction
         return bag_predictions, None
 
-    @staticmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
-        aggregator = agg.EmbeddingAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return EmbeddingSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
+class InstanceSpaceNN(MultipleInstanceNN, ABC):
 
-class InstanceSpaceNN(MultipleInstanceNN):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
-        super().__init__(device, n_classes, n_expec_dims, model_yobj)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -173,17 +95,11 @@ class InstanceSpaceNN(MultipleInstanceNN):
             bag_instance_predictions.append(instance_predictions)
         return bag_predictions, bag_instance_predictions
 
-    @staticmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
-        aggregator = agg.InstanceAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return InstanceSpaceNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
+class AttentionNN(MultipleInstanceNN, ABC):
 
-class AttentionNN(MultipleInstanceNN):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, model_yobj):
-        super().__init__(device, n_classes, n_expec_dims, model_yobj)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims)
         self.encoder = encoder
         self.aggregator = aggregator
 
@@ -203,23 +119,11 @@ class AttentionNN(MultipleInstanceNN):
             bag_attns.append(attn)
         return bag_predictions, bag_attns
 
-    @staticmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
-        aggregator = agg.MultiHeadAttentionAggregator.from_yaml_obj(model_yobj.Aggregator)
-        return AttentionNN(device, n_classes, n_expec_dims, encoder, aggregator, model_yobj)
 
+class ClusterGNN(MultipleInstanceModel, ABC):
 
-# Still need to define this so it matches the YAML file, even though it does exactly the same as AttentionNN
-class MultiHeadAttentionNN(AttentionNN):
-    pass
-
-
-class ClusterGNN(MultipleInstanceModel):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder,
-                 d_enc, d_gnn, ds_gnn_hid, ds_fc_hid, dropout, model_yobj):
-        super().__init__(device, n_classes, n_expec_dims, model_yobj)
+    def __init__(self, device, n_classes, n_expec_dims, encoder, d_enc, d_gnn, ds_gnn_hid, ds_fc_hid, dropout):
+        super().__init__(device, n_classes, n_expec_dims)
         self.n_clusters = 1
         self.encoder = encoder
         self.gnn_stack = mod.GNNConvStack(d_enc, ds_gnn_hid, d_gnn, dropout, SAGEConv, raw_last=False)
@@ -253,7 +157,7 @@ class ClusterGNN(MultipleInstanceModel):
                 bag = self.add_graph(bag)
             bag = bag.to(self.device)
             x, edge_index = bag.x, bag.edge_index
-    
+
             # Embed instances
             instance_embeddings = self.encoder(x)
 
@@ -283,10 +187,3 @@ class ClusterGNN(MultipleInstanceModel):
         edge_index = edge_index.long().contiguous()
         graph_bag = Data(x=bag, edge_index=edge_index)
         return graph_bag
-
-    @staticmethod
-    def from_yaml_obj(device, n_classes, n_expec_dims, model_yobj):
-        encoder = InstanceEncoder.from_yaml_obj(model_yobj.Encoder)
-        y = model_yobj.GNN
-        return ClusterGNN(device, n_classes, n_expec_dims, encoder, y.d_enc, y.d_gnn, y.ds_gnn_hid, y.ds_fc_hid,
-                          model_yobj.TrainParams.dropout, model_yobj)

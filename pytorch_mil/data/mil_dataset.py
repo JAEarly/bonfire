@@ -3,14 +3,11 @@ from collections import Counter
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from torch_geometric.data import Data
-from torch_geometric.utils import dense_to_sparse
+from abc import ABC, abstractmethod
 
 
-# TODO Make ABC and add abstract method to compute the mean.
-# TODO remove geometric stuff and extend to GraphMilDataset
-# TODO create abstract setup function for each dataset
-class MilDataset(Dataset):
+# TODO Add abstract method to compute the mean.
+class MilDataset(Dataset, ABC):
 
     def __init__(self, bags, targets, instance_targets):
         super(Dataset, self).__init__()
@@ -18,28 +15,20 @@ class MilDataset(Dataset):
         self.targets = torch.as_tensor(targets).float()
         self.instance_targets = instance_targets
 
-    def add_edges(self, eta=None):
-        self.edge_indexs = []
-        for bag in self.bags:
-            # If eta not set, create fully connected graph
-            if eta is None:
-                edge_index = torch.ones((len(bag), len(bag)))
-                edge_index, _ = dense_to_sparse(edge_index)
-                edge_index = edge_index.long().contiguous()
-            else:
-                dist = torch.cdist(bag, bag)
-                b_dist = torch.zeros_like(dist)
-                b_dist[dist < eta] = 1
-                edge_index = (dist < eta).nonzero().t()
-            edge_index = edge_index.long().contiguous()
-            self.edge_indexs.append(edge_index)
+    @classmethod
+    @abstractmethod
+    def create_datasets(cls, random_state=12):
+        pass
 
-    def summarise(self):
+    def summarise(self, out_clz_dist=True):
         clz_dist = Counter(np.asarray(self.targets))
         print('- MIL Dataset Summary -')
-        print(' Class Distribution')
-        for clz in sorted(clz_dist.keys()):
-            print('  {:d}: {:d} ({:.2f}%)'.format(int(clz), clz_dist[clz], clz_dist[clz]/len(self)*100))
+        print(' {:d} bags'.format(len(self.bags)))
+
+        if out_clz_dist:
+            print(' Class Distribution')
+            for clz in sorted(clz_dist.keys()):
+                print('  {:d}: {:d} ({:.2f}%)'.format(int(clz), clz_dist[clz], clz_dist[clz]/len(self)*100))
 
         bag_sizes = [len(b) for b in self.bags]
         print(' Bag Sizes')

@@ -27,12 +27,14 @@ class FullyConnectedBlock(nn.Module):
         if raw:
             self.block = nn.Sequential(fc)
         else:
-            relu = nn.ReLU()
             if dropout != 0:
+                relu = nn.ReLU()
                 dropout = nn.Dropout(p=dropout)
                 self.block = nn.Sequential(fc, relu, dropout)
             else:
-                self.block = nn.Sequential(fc, relu)
+                # TODO relu or non relu?
+                # self.block = nn.Sequential(fc, relu)
+                self.block = fc
 
     def forward(self, x):
         return self.block(x)

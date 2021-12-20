@@ -1,8 +1,9 @@
+from abc import ABC
+
 import torch
 from torch import nn
 
 from pytorch_mil.model import modules as mod
-from abc import ABC
 
 
 class Aggregator(nn.Module, ABC):
@@ -31,10 +32,6 @@ class InstanceAggregator(Aggregator):
         bag_prediction = self.aggregation_func(instance_predictions)
         return bag_prediction, instance_predictions
 
-    @staticmethod
-    def from_yaml_obj(y):
-        return InstanceAggregator(y.d_in, y.ds_hid, y.n_classes, y.dropout, y.agg_func_name)
-
 
 class EmbeddingAggregator(Aggregator):
 
@@ -48,10 +45,6 @@ class EmbeddingAggregator(Aggregator):
         bag_prediction = self.embedding_classifier(bag_embedding)
         return bag_prediction, None
 
-    @staticmethod
-    def from_yaml_obj(y):
-        return EmbeddingAggregator(y.d_in, y.ds_hid, y.n_classes, y.dropout, y.agg_func_name)
-
 
 class MultiHeadAttentionAggregator(Aggregator):
 
@@ -64,7 +57,3 @@ class MultiHeadAttentionAggregator(Aggregator):
         bag_embedding, attn = self.attention_aggregator(instance_embeddings)
         bag_prediction = self.embedding_classifier(bag_embedding)
         return bag_prediction, attn
-
-    @staticmethod
-    def from_yaml_obj(y):
-        return MultiHeadAttentionAggregator(y.n_heads, y.d_in, y.ds_hid, y.d_attn, y.n_classes, y.dropout)

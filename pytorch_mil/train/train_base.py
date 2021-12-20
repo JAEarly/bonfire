@@ -7,18 +7,21 @@ import torch
 from matplotlib import pyplot as plt
 from torch import nn
 from tqdm import tqdm
+import os
 
-from pytorch_mil.model import create_model, save_model
 from pytorch_mil.train.train_util import eval_complete, eval_model, output_results
 
 
 class Trainer(ABC):
 
-    def __init__(self, device, model_clz, dataset_name, model_yobj_override=None):
+    def __init__(self, device, n_classes, model_clz, model_params, save_dir, train_params):
         self.device = device
+        self.n_classes = n_classes
+        self.save_dir = save_dir
         self.model_clz = model_clz
-        self.model_yobj_override = model_yobj_override
-        self.dataset_name = dataset_name
+        self.model_params = model_params
+        self.train_params = train_params
+        self.update_train_params(self.get_default_train_params())
 
     @abstractmethod
     def load_datasets(self, seed=None):
@@ -28,27 +31,29 @@ class Trainer(ABC):
     def get_default_train_params(self):
         pass
 
-    @staticmethod
-    @abstractmethod
-    def get_trainer_clz_from_model_name(model_clz):
-        pass
+    def create_model(self):
+        if self.model_params is not None:
+            return self.model_clz(self.device, **self.model_params)
+        return self.model_clz(self.device)
 
     def get_model_name(self):
         return self.model_clz.__name__
 
     def create_optimizer(self, model):
-        lr = self.get_train_param('lr', model.model_yobj)
-        weight_decay = self.get_train_param('wd', model.model_yobj)
+        lr = self.get_train_param('lr')
+        weight_decay = self.get_train_param('wd')
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
 
     def get_criterion(self):
         return nn.CrossEntropyLoss()
 
-    def get_train_param(self, key, model_yobj):
-        try:
-            return float(getattr(model_yobj.TrainParams, key))
-        except AttributeError:
-            return self.get_default_train_params()[key]
+    def get_train_param(self, key):
+        return self.train_params[key]
+
+    def update_train_params(self, new_params, override=False):
+        for key, value in new_params.items():
+            if override or key not in self.train_params:
+                self.train_params[key] = value
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
@@ -75,8 +80,8 @@ class Trainer(ABC):
 
         early_stopped = False
 
-        n_epochs = self.get_train_param('n_epochs', model)
-        patience = self.get_train_param('patience', model)
+        n_epochs = self.get_train_param('n_epochs')
+        patience = self.get_train_param('patience')
 
         train_losses = []
         val_metrics = []
@@ -120,17 +125,21 @@ class Trainer(ABC):
 
         return best_model, train_losses, val_metrics, early_stopped
 
-    def train_single(self, seed=5, save=True, show_plot=True, verbose=True, trial=None):
+    def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
         train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=seed)
-        model = create_model(self.device, self.model_clz, self.dataset_name, self.model_yobj_override)
+        model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
         best_model, train_losses, val_metrics, early_stopped = train_outputs
         train_results, val_results, test_results = eval_complete(best_model, train_dataloader, val_dataloader,
                                                                  test_dataloader, verbose=verbose)
 
-        if save:
-            save_model(best_model, self.get_model_name(), self.dataset_name)
+        if save_model:
+            save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
+            print('Saving model to {:s}'.format(save_path))
+            if not os.path.exists(self.save_dir):
+                os.makedirs(self.save_dir)
+            torch.save(best_model.state_dict(), save_path)
 
         if show_plot:
             self.plot_training(train_losses, val_metrics)
@@ -141,6 +150,10 @@ class Trainer(ABC):
         print('Training model with repeats')
         np.random.seed(seed=seed)
 
+        model_save_dir = '{:s}/{:s}'.format(self.save_dir, self.get_model_name())
+        if not os.path.exists(model_save_dir):
+            os.makedirs(model_save_dir)
+
         # Train multiple models
         results = []
         for i in range(num_repeats):
@@ -148,7 +161,7 @@ class Trainer(ABC):
             repeat_seed = np.random.randint(low=1, high=1000)
             print('Seed: {:d}'.format(repeat_seed))
             train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=repeat_seed)
-            model = create_model(self.device, self.model_clz, self.dataset_name, self.model_yobj_override)
+            model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
             final_results = eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader, verbose=False)
@@ -156,7 +169,7 @@ class Trainer(ABC):
             results.append([train_results[0], train_results[1],
                             val_results[0], val_results[1],
                             test_results[0], test_results[1]])
-            save_model(best_model, self.get_model_name(), self.dataset_name, repeat=i)
+            torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
 
         output_results(results)
 
