@@ -88,6 +88,7 @@ class FlatInstanceEncoder(nn.Module):
         return FlatInstanceEncoder(y.d_in, y.ds_hid, y.d_out, y.dropout)
 
 
+# TODO maybe break these out into a model specific file?
 class MnistConvInstanceEncoder(nn.Module):
 
     def __init__(self, d_fv, ds_hid, d_out, dropout):

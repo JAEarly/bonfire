@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader
 
 from pytorch_mil.data import musk_dataset
 from pytorch_mil.data import tef_dataset
+# TODO fix this
 from pytorch_mil.model import musk_models, tef_models
 from pytorch_mil.train.musk_training import MuskNetTrainer, MuskGNNTrainer
 from pytorch_mil.train.tef_training import TefNetTrainer, TefGNNTrainer
