@@ -14,17 +14,17 @@ from pytorch_mil.train.train_util import eval_complete, eval_model, output_resul
 
 class Trainer(ABC):
 
-    def __init__(self, device, n_classes, model_clz, model_params, save_dir, train_params):
+    def __init__(self, device, n_classes, model_clz, save_dir, model_params_override=None, train_params_override=None):
         self.device = device
         self.n_classes = n_classes
         self.save_dir = save_dir
         self.model_clz = model_clz
-        self.model_params = model_params
-        self.train_params = train_params
-        self.update_train_params(self.get_default_train_params())
+        self.model_params_override = model_params_override
+        self.train_params = self.get_default_train_params()
+        self.update_train_params(train_params_override)
 
     @abstractmethod
-    def load_datasets(self, seed=None):
+    def load_dataloaders(self, seed=None):
         pass
 
     @abstractmethod
@@ -32,8 +32,8 @@ class Trainer(ABC):
         pass
 
     def create_model(self):
-        if self.model_params is not None:
-            return self.model_clz(self.device, **self.model_params)
+        if self.model_params_override is not None:
+            return self.model_clz(self.device, **self.model_params_override)
         return self.model_clz(self.device)
 
     def get_model_name(self):
@@ -45,14 +45,14 @@ class Trainer(ABC):
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
 
     def get_criterion(self):
-        return nn.CrossEntropyLoss()
+        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
 
     def get_train_param(self, key):
         return self.train_params[key]
 
-    def update_train_params(self, new_params, override=False):
-        for key, value in new_params.items():
-            if override or key not in self.train_params:
+    def update_train_params(self, new_params):
+        if new_params is not None:
+            for key, value in new_params.items():
                 self.train_params[key] = value
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
@@ -62,13 +62,13 @@ class Trainer(ABC):
             bags, targets = data[0], data[1].to(self.device)
             optimizer.zero_grad()
             outputs = model(bags)
-            loss = criterion(outputs, targets.long())
+            loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
             epoch_train_loss += loss.item()
         epoch_train_loss /= len(train_dataloader)
         epoch_train_loss = epoch_train_loss
-        epoch_val_metrics = eval_model(model, val_dataloader)
+        epoch_val_metrics = eval_model(model, val_dataloader, criterion)
         return epoch_train_loss, epoch_val_metrics
 
     def train_model(self, model, train_dataloader, val_dataloader, trial=None):
@@ -132,7 +132,7 @@ class Trainer(ABC):
         del model
         best_model, train_losses, val_metrics, early_stopped = train_outputs
         train_results, val_results, test_results = eval_complete(best_model, train_dataloader, val_dataloader,
-                                                                 test_dataloader, verbose=verbose)
+                                                                 test_dataloader, self.get_criterion(), verbose=verbose)
 
         if save_model:
             save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
@@ -164,7 +164,8 @@ class Trainer(ABC):
             model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
-            final_results = eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader, verbose=False)
+            final_results = eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
+                                          self.get_criterion(), verbose=False)
             train_results, val_results, test_results = final_results
             results.append([train_results[0], train_results[1],
                             val_results[0], val_results[1],

@@ -55,46 +55,55 @@ class GraphDataloader:
         return len(self.mil_dataset)
 
 
-def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, verbose=False):
+def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, verbose=False):
     if verbose:
         print('\n-- Train Results --')
-    train_results = eval_model(model, train_dataloader, verbose=verbose)
+    train_results = eval_model(model, train_dataloader, criterion, verbose=verbose)
     if verbose:
         print('\n-- Val Results --')
-    val_results = eval_model(model, val_dataloader, verbose=verbose)
+    val_results = eval_model(model, val_dataloader, criterion, verbose=verbose)
     if verbose:
         print('\n-- Test Results --')
-    test_results = eval_model(model, test_dataloader, verbose=verbose)
+    test_results = eval_model(model, test_dataloader, criterion, verbose=verbose)
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataloader, verbose=False):
+def eval_model(model, dataloader, criterion, verbose=False):
     model.eval()
     with torch.no_grad():
-        criterion = nn.CrossEntropyLoss()
         labels = list(range(model.n_classes))
-        all_probas = []
+        all_preds = []
         all_targets = []
         for data in dataloader:
             bags, targets = data[0], data[1]
-            bag_probas = model(bags)
-            all_probas.append(bag_probas.detach().cpu())
+            bag_preds = model(bags)
+            all_preds.append(bag_preds.detach().cpu())
             all_targets.append(targets.detach().cpu())
         all_targets = torch.cat(all_targets).long()
-        all_probas = torch.cat(all_probas)
-        _, all_preds = torch.max(F.softmax(all_probas, dim=1), dim=1)
-        acc = accuracy_score(all_targets, all_preds)
-        loss = criterion(all_probas, all_targets).item()
-        if verbose:
-            conf_mat = pd.DataFrame(
-                confusion_matrix(all_targets, all_preds, labels=labels),
-                index=pd.Index(labels, name='Actual'),
-                columns=pd.Index(labels, name='Predicted')
-            )
-            print(' Acc: {:.3f}'.format(acc))
-            print('Loss: {:.3f}'.format(loss))
-            print(conf_mat)
-    return acc, loss
+        all_preds = torch.cat(all_preds)
+        if model.n_classes > 1:
+            # Classification
+            _, all_preds = torch.max(F.softmax(all_preds, dim=1), dim=1)
+            acc = accuracy_score(all_targets, all_preds)
+            loss = criterion(all_preds, all_targets).item()
+            if verbose:
+                conf_mat = pd.DataFrame(
+                    confusion_matrix(all_targets, all_preds, labels=labels),
+                    index=pd.Index(labels, name='Actual'),
+                    columns=pd.Index(labels, name='Predicted')
+                )
+                print(' Acc: {:.3f}'.format(acc))
+                print('Loss: {:.3f}'.format(loss))
+                print(conf_mat)
+        else:
+            # TODO sort this out, it's messy
+            # Regression
+            acc = criterion(all_preds, all_targets).item()
+            loss = criterion(all_preds, all_targets).item()
+            if verbose:
+                print(' Acc: {:.3f}'.format(acc))
+                print('Loss: {:.3f}'.format(loss))
+        return acc, loss
 
 
 def output_results(results):

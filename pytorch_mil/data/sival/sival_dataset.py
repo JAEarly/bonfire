@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
-from pytorch_mil.data.mil_dataset import MilDataset, GraphMilDataset
+from pytorch_mil.data.mil_dataset import MilDataset
 
 raw_dir = "data/SIVAL/raw"
 input_file = "data/SIVAL/processed.data"

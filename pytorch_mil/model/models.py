@@ -23,16 +23,33 @@ class MultipleInstanceModel(nn.Module, ABC):
         pass
 
     @abstractmethod
-    def forward_verbose(self, bags):
+    def forward_verbose(self, model_input):
+        pass
+
+    @abstractmethod
+    def _internal_forward(self, bags):
         pass
 
     def suggest_train_params(self):
         return {}
 
+    @classmethod
+    def load_model(cls, device, path, *model_args):
+        model = cls(device, *model_args)
+        model.load_state_dict(torch.load(path))
+        model.to(device)
+        model.eval()
+        return model
+
 
 class MultipleInstanceNN(MultipleInstanceModel, ABC):
 
     def forward(self, model_input):
+        # We don't care about any interpretability output here
+        bag_predictions, _ = self.forward_verbose(model_input)
+        return bag_predictions
+
+    def forward_verbose(self, model_input):
         # Check if input is unbatched bag (n_expec_dims) or batched (n_expec_dims + 1)
         input_shape = model_input.shape
         unbatched_bag = len(input_shape) == self.n_expec_dims
@@ -42,12 +59,12 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
 
         # Actually pass the input through the model
         #  We don't care about any interpretability output here
-        bag_predictions, _ = self.forward_verbose(bags)
+        bag_predictions, instance_predictions_list = self._internal_forward(bags)
 
-        # Return single pred if unbatched_bag bag else multiple preds
+        # Return single pred and instance_prediction set if unbatched_bag bag else multiple preds
         if unbatched_bag:
-            return bag_predictions.squeeze()
-        return bag_predictions
+            return bag_predictions.squeeze(), instance_predictions_list[0]
+        return bag_predictions, instance_predictions_list
 
 
 class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
@@ -57,7 +74,7 @@ class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
         self.encoder = encoder
         self.aggregator = aggregator
 
-    def forward_verbose(self, bags):
+    def _internal_forward(self, bags):
         bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
         for i, instances in enumerate(bags):
             # Embed instances
@@ -79,8 +96,9 @@ class InstanceSpaceNN(MultipleInstanceNN, ABC):
         self.encoder = encoder
         self.aggregator = aggregator
 
-    def forward_verbose(self, bags):
+    def _internal_forward(self, bags):
         bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
+        # Bags may be of different sizes, so we can't use a tensor to store the instance predictions
         bag_instance_predictions = []
         for i, instances in enumerate(bags):
             # Embed instances
@@ -103,7 +121,7 @@ class AttentionNN(MultipleInstanceNN, ABC):
         self.encoder = encoder
         self.aggregator = aggregator
 
-    def forward_verbose(self, bags):
+    def _internal_forward(self, bags):
         bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
         bag_attns = []
         for i, instances in enumerate(bags):
@@ -131,7 +149,7 @@ class ClusterGNN(MultipleInstanceModel, ABC):
         self.gnn_pool = SAGEConv(d_enc, self.n_clusters)
         self.classifier = mod.FullyConnectedStack(d_gnn, ds_fc_hid, n_classes, dropout, raw_last=True)
 
-    def forward(self, model_input):
+    def _internal_forward(self, model_input):
         # Unbatched input could be Data type, or raw tensor without Data structure
         unbatched_bag = type(model_input) is Data or \
                         (type(model_input) is torch.Tensor and len(model_input.shape) == self.n_expec_dims)
