@@ -9,8 +9,9 @@ from abc import ABC, abstractmethod
 # TODO Add abstract method to compute the mean.
 class MilDataset(Dataset, ABC):
 
-    def __init__(self, bags, targets, instance_targets):
+    def __init__(self, name, bags, targets, instance_targets):
         super(Dataset, self).__init__()
+        self.name = name
         self.bags = bags
         self.targets = torch.as_tensor(targets).float()
         self.instance_targets = instance_targets

@@ -126,7 +126,7 @@ class Trainer(ABC):
         return best_model, train_losses, val_metrics, early_stopped
 
     def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
-        train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=seed)
+        train_dataloader, val_dataloader, test_dataloader = self.load_dataloaders(seed=seed)
         model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
