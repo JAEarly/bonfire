@@ -17,8 +17,29 @@ TEF_D_IN = 230
 class TEFDataset(MilDataset):
 
     def __init__(self, dataset_name, bags, targets):
-        super().__init__(bags, targets, None)
+        super().__init__(dataset_name, bags, targets, None)
         self.dataset_name = dataset_name
+
+    # TODO fix issues with mismatching signatures
+    @classmethod
+    def create_datasets(cls, dataset_name, random_state=12):
+        parsed_data = parse_data(dataset_name)
+        bags, targets = parsed_data
+
+        bags = normalise(bags)
+
+        splits = train_test_split(bags, targets, train_size=0.7, stratify=targets, random_state=random_state)
+        train_bags, test_bags, train_targets, test_targets = splits
+
+        splits = train_test_split(test_bags, test_targets, train_size=0.5, stratify=test_targets,
+                                  random_state=random_state)
+        val_bags, test_bags, val_targets, test_targets = splits
+
+        train_dataset = TEFDataset(dataset_name, train_bags, train_targets)
+        val_dataset = TEFDataset(dataset_name, val_bags, val_targets)
+        test_dataset = TEFDataset(dataset_name, test_bags, test_targets)
+
+        return train_dataset, val_dataset, test_dataset
 
 
 def get_path_from_dataset_name(dataset_name):
@@ -84,35 +105,15 @@ def normalise(bags):
     return norm_bags
 
 
-def create_datasets(dataset_name, random_state=12):
-    parsed_data = parse_data(dataset_name)
-    bags, targets = parsed_data
-
-    bags = normalise(bags)
-
-    splits = train_test_split(bags, targets, train_size=0.7, stratify=targets, random_state=random_state)
-    train_bags, test_bags, train_targets, test_targets = splits
-
-    splits = train_test_split(test_bags, test_targets, train_size=0.5, stratify=test_targets,
-                              random_state=random_state)
-    val_bags, test_bags, val_targets, test_targets = splits
-
-    train_dataset = TEFDataset(dataset_name, train_bags, train_targets)
-    val_dataset = TEFDataset(dataset_name, val_bags, val_targets)
-    test_dataset = TEFDataset(dataset_name, test_bags, test_targets)
-
-    return train_dataset, val_dataset, test_dataset
-
-
 if __name__ == "__main__":
     print("\n -- TIGER -- ")
-    for d in create_datasets("tiger"):
+    for d in TEFDataset.create_datasets("tiger"):
         d.summarise()
 
     print("\n -- ELEPHANT -- ")
-    for d in create_datasets("elephant"):
+    for d in TEFDataset.create_datasets("elephant"):
         d.summarise()
 
     print("\n -- FOX -- ")
-    for d in create_datasets("fox"):
+    for d in TEFDataset.create_datasets("fox"):
         d.summarise()
