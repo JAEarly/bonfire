@@ -50,45 +50,36 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
         return bag_predictions
 
     def forward_verbose(self, model_input):
-        # Check if input is unbatched bag (n_expec_dims) or batched (n_expec_dims + 1)
-        input_shape = model_input.shape
-        unbatched_bag = len(input_shape) == self.n_expec_dims
-
-        # Batch if single bag
-        bags = model_input.unsqueeze(0) if unbatched_bag else model_input
+        unbatched_bag = False
+        # Model input is tensor
+        if torch.is_tensor(model_input):
+            input_shape = model_input.shape
+            unbatched_bag = len(input_shape) == self.n_expec_dims
+            if unbatched_bag:
+                # Just a single bag on its own, not in a batch, therefore stick it in a list
+                bags = [model_input]
+            else:
+                # Assume already batched
+                bags = model_input
+        # Model input is list
+        elif type(model_input) == list:
+            # Assume already batched
+            bags = model_input
+        # Invalid input type
+        else:
+            raise ValueError('Invalid model input type {:}'.format(type(model_input)))
 
         # Actually pass the input through the model
         #  We don't care about any interpretability output here
-        bag_predictions, instance_predictions_list = self._internal_forward(bags)
+        bag_predictions, _ = self._internal_forward(bags)
 
-        # Return single pred and instance_prediction set if unbatched_bag bag else multiple preds
+        # If given input was not batched, also un-batch the output
         if unbatched_bag:
-            return bag_predictions.squeeze(), instance_predictions_list[0]
-        return bag_predictions, instance_predictions_list
+            return bag_predictions[0]
+        return bag_predictions
 
 
-class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
-
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
-        super().__init__(device, n_classes, n_expec_dims)
-        self.encoder = encoder
-        self.aggregator = aggregator
-
-    def _internal_forward(self, bags):
-        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
-        for i, instances in enumerate(bags):
-            # Embed instances
-            instances = instances.to(self.device)
-            instance_embeddings = self.encoder(instances)
-
-            # Classify instances and aggregate
-            bag_prediction, _ = self.aggregator(instance_embeddings)
-
-            # Update outputs
-            bag_predictions[i] = bag_prediction
-        return bag_predictions, None
-
-
+# TODO all these classes are ABC - should they be?
 class InstanceSpaceNN(MultipleInstanceNN, ABC):
 
     def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
@@ -112,6 +103,28 @@ class InstanceSpaceNN(MultipleInstanceNN, ABC):
             bag_predictions[i] = bag_prediction
             bag_instance_predictions.append(instance_predictions)
         return bag_predictions, bag_instance_predictions
+
+
+class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims)
+        self.encoder = encoder
+        self.aggregator = aggregator
+
+    def _internal_forward(self, bags):
+        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
+        for i, instances in enumerate(bags):
+            # Embed instances
+            instances = instances.to(self.device)
+            instance_embeddings = self.encoder(instances)
+
+            # Classify instances and aggregate
+            bag_prediction, _ = self.aggregator(instance_embeddings)
+
+            # Update outputs
+            bag_predictions[i] = bag_prediction
+        return bag_predictions, None
 
 
 class AttentionNN(MultipleInstanceNN, ABC):
@@ -205,3 +218,110 @@ class ClusterGNN(MultipleInstanceModel, ABC):
         edge_index = edge_index.long().contiguous()
         graph_bag = Data(x=bag, edge_index=edge_index)
         return graph_bag
+
+
+class MiLstm(MultipleInstanceNN, ABC):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, shuffle_instances=False):
+        super().__init__(device, n_classes, n_expec_dims)
+        self.encoder = encoder
+        self.aggregator = aggregator
+        self.shuffle_instances = shuffle_instances
+
+    # -- UNUSED --
+    # def create_mi_networks(self):
+    #     net_discrim_global = nn.Sequential(
+    #         nn.Linear(self.encoder.d_in + self.aggregator.embedding_size, 512),
+    #         nn.ReLU(),
+    #         nn.Linear(512, 512),
+    #         nn.ReLU(),
+    #         nn.Linear(512, 1),
+    #     )
+    #     net_discrim_local = nn.Sequential(
+    #         nn.Linear(self.encoder.d_in + self.encoder.d_out, 512),
+    #         nn.ReLU(),
+    #         nn.Linear(512, 512),
+    #         nn.ReLU(),
+    #         nn.Linear(512, 1),
+    #     )
+    #     net_discrim_prior = nn.Sequential(
+    #         nn.Linear(self.aggregator.embedding_size, 1000),
+    #         nn.ReLU(),
+    #         nn.Linear(1000, 200),
+    #         nn.ReLU(),
+    #         nn.Linear(200, 1),
+    #         nn.Sigmoid()
+    #     )
+    #     return net_discrim_global, net_discrim_local, net_discrim_prior
+
+    def _internal_forward(self, bags):
+        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
+        all_cumulative_bag_predictions = []
+
+        # First pass: get instance embeddings, bag embeddings, and bag predictions.
+        for i, instances in enumerate(bags):
+            instances = instances.to(self.device)
+            if self.training and self.shuffle_instances:
+                instances = instances[torch.randperm(len(instances))]
+            instance_embeddings = self.encoder(instances)
+            bag_embedding, bag_prediction, cumulative_bag_predictions = self.aggregator(instance_embeddings)
+            bag_predictions[i] = bag_prediction
+            all_cumulative_bag_predictions.append(cumulative_bag_predictions)
+
+        # -- UNUSED --
+        # Second pass: calculate MI scores
+        # all_mi_scores = torch.zeros((len(bags), 3))
+        # if self.use_mi:
+        #     for i, instances in enumerate(bags):
+        #         instances = instances.to(self.device)
+        #         instance_embeddings = all_instance_embeddings[i]
+        #         bag_embedding = all_bag_embedding[i]
+        #
+        #         if i < len(bags) - 1:
+        #             prev_instance_embeddings = all_instance_embeddings[i + 1]
+        #             prev_bag_embedding = all_bag_embedding[i + 1]
+        #         else:
+        #             prev_instance_embeddings = all_instance_embeddings[0]
+        #             prev_bag_embedding = all_bag_embedding[0]
+        #
+        #         mi_scores = self._forward_mi(instances, instance_embeddings, bag_embedding,
+        #                                      prev_instance_embeddings, prev_bag_embedding)
+        #         all_mi_scores[i] = mi_scores
+
+        return bag_predictions, all_cumulative_bag_predictions
+
+    # -- UNUSED --
+    # def _forward_mi(self, instances, instance_embeddings, bag_embedding, alt_instance_embeddings, alt_bag_embedding):
+    #
+    #     mi_scores = torch.zeros(3)  # Global, local, prior
+    #
+    #     #  Global: instance + bag representation
+    #     actual_global_pairings = torch.cat([instances, bag_embedding.repeat(instances.shape[0], 1)], dim=1)
+    #     random_global_pairings = torch.cat([instances, alt_bag_embedding.repeat(instances.shape[0], 1)], dim=1)
+    #     global_actual = -F.softplus(-self.net_discrim_global(actual_global_pairings)).mean()
+    #     global_random = F.softplus(self.net_discrim_global(random_global_pairings)).mean()
+    #     mi_global = global_random - global_actual
+    #
+    #     # Local: instance + instance embedding
+    #     actual_local_pairings = torch.cat([instances, instance_embeddings], dim=1)
+    #     # Sample n random indices of our alt instance embeddings, where n is our number of instances in the actual bag
+    #     random_perm = np.random.choice(alt_instance_embeddings.shape[0], instances.shape[0])
+    #     random_local_pairings = torch.cat([instances, alt_instance_embeddings[random_perm, :]], dim=1)
+    #     local_actual = -F.softplus(-self.net_discrim_local(actual_local_pairings)).mean()
+    #     local_random = F.softplus(self.net_discrim_local(random_local_pairings)).mean()
+    #     mi_local = local_random - local_actual
+    #
+    #     # Prior
+    #     prior = torch.rand_like(bag_embedding)
+    #     term_a = torch.log(self.net_discrim_prior(prior)).mean()
+    #     term_b = torch.log(1.0 - self.net_discrim_prior(bag_embedding)).mean()
+    #     mi_prior = - (term_a + term_b)
+    #
+    #     mi_scores[0] = mi_global
+    #     mi_scores[1] = mi_local
+    #     mi_scores[2] = mi_prior
+    #
+    #     return mi_scores
+
+    def flatten_parameters(self):
+        self.aggregator.flatten_parameters()
