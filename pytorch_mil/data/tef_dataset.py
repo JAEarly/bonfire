@@ -20,9 +20,8 @@ class TEFDataset(MilDataset):
         super().__init__(dataset_name, bags, targets, None)
         self.dataset_name = dataset_name
 
-    # TODO fix issues with mismatching signatures
     @classmethod
-    def create_datasets(cls, dataset_name, random_state=12):
+    def create_datasets(cls, dataset_name="tiger", random_state=12):
         parsed_data = parse_data(dataset_name)
         bags, targets = parsed_data
 
