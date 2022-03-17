@@ -57,3 +57,47 @@ class MultiHeadAttentionAggregator(Aggregator):
         bag_embedding, attn = self.attention_aggregator(instance_embeddings)
         bag_prediction = self.embedding_classifier(bag_embedding)
         return bag_prediction, attn
+
+
+class CountAggregator(Aggregator):
+
+    def __init__(self, base_aggregator):
+        super().__init__()
+        self.base_aggregator = base_aggregator
+        self.relu = torch.nn.ReLU()
+
+    def forward(self, instance_embeddings):
+        bag_prediction, instance_attributions = self.base_aggregator(instance_embeddings)
+        bag_prediction = self.relu(bag_prediction)
+        # print(bag_prediction)
+        # print(instance_attributions)
+        return bag_prediction, instance_attributions
+
+
+class LstmAggregator(Aggregator):
+
+    def __init__(self, d_in, d_hid, n_lstm_layers, bidirectional, dropout, ds_hid, n_classes):
+        super().__init__()
+        self.lstm_block = mod.LstmBlock(d_in, d_hid, n_lstm_layers, bidirectional, dropout)
+        self.embedding_size = d_hid * 2 if bidirectional else d_hid
+        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
+                                                            dropout, raw_last=True)
+
+    def forward(self, instance_embeddings):
+        # Pass through lstm block
+        #   Unsqueeze as lstm block expects a 3D input
+        bag_embedding, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
+
+        # Get bag prediction
+        bag_prediction = self.embedding_classifier(bag_embedding)
+
+        # Get cumulative instance predictions if not training
+        cumulative_predictions = None
+        # if not self.training:
+        #     with torch.no_grad():
+        #         cumulative_predictions = self.embedding_classifier(cumulative_bag_embeddings)
+
+        return bag_embedding, bag_prediction, cumulative_predictions
+
+    def flatten_parameters(self):
+        self.lstm_block.flatten_parameters()
