@@ -65,3 +65,21 @@ class SivalGNN(models.ClusterGNN):
             'lr': 5e-4,
             'weight_decay': 1e-5,
         }
+
+
+class SivalMiLstm(models.MiLstm):
+
+    def __init__(self, device, d_enc=128, ds_enc_hid=(512,), d_lstm_hid=512, n_lstm_layers=1,
+                 bidirectional=True, ds_fc_hid=(), dropout=0.15, shuffle_instances=True):
+        encoder = mod.FullyConnectedStack(SIVAL_D_IN, ds_enc_hid, d_enc, dropout=0, raw_last=False)
+        aggregator = agg.LstmAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional, dropout, ds_fc_hid,
+                                        SIVAL_N_CLASSES)
+        super().__init__(device, SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS,
+                         encoder, aggregator, shuffle_instances=shuffle_instances)
+
+    @overrides
+    def suggest_train_params(self):
+        return {
+            'lr': 5e-5,
+            'weight_decay': 1e-3,
+        }
