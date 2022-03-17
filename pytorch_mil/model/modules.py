@@ -4,16 +4,12 @@ from torch import nn
 
 class ConvBlock(nn.Module):
 
-    def __init__(self, c_in, c_out, kernel_size, stride, padding, dropout):
+    def __init__(self, c_in, c_out, kernel_size, stride, padding):
         super().__init__()
         conv = nn.Conv2d(c_in, c_out, kernel_size=kernel_size, stride=stride, padding=padding)
         relu = nn.ReLU()
         pool = nn.MaxPool2d(kernel_size=2)
-        if dropout != 0:
-            dropout = nn.Dropout(p=dropout)
-            self.block = nn.Sequential(conv, relu, pool, dropout)
-        else:
-            self.block = nn.Sequential(conv, relu, pool)
+        self.block = nn.Sequential(conv, relu, pool)
 
     def forward(self, x):
         return self.block(x)
@@ -27,14 +23,12 @@ class FullyConnectedBlock(nn.Module):
         if raw:
             self.block = nn.Sequential(fc)
         else:
+            relu = nn.ReLU()
             if dropout != 0:
-                relu = nn.ReLU()
                 dropout = nn.Dropout(p=dropout)
                 self.block = nn.Sequential(fc, relu, dropout)
             else:
-                # TODO relu or non relu?
-                # self.block = nn.Sequential(fc, relu)
-                self.block = fc
+                self.block = nn.Sequential(fc, relu)
 
     def forward(self, x):
         return self.block(x)
@@ -129,3 +123,30 @@ class GNNConvStack(nn.Module):
 
     def forward(self, x):
         return self.stack(x)
+
+
+class LstmBlock(nn.Module):
+
+    def __init__(self, d_in, d_hid, n_layers, bidirectional, dropout):
+        super().__init__()
+        self.lstm = nn.LSTM(input_size=d_in, hidden_size=d_hid, num_layers=n_layers,
+                            bidirectional=bidirectional, batch_first=True, dropout=dropout)
+        self.bidirectional = bidirectional
+        self.d_hid = d_hid
+        self.dropout = nn.Dropout(p=dropout)
+
+    def forward(self, x):
+        _, n_instances, _ = x.shape
+        out, (ht, _) = self.lstm(x)
+        if self.bidirectional:
+            out_split = out.view(1, n_instances, 2, self.d_hid)
+            forward_out = out_split[:, :, 0, :]
+            backward_out = out_split[:, :, 1, :]
+            bag_repr = torch.cat([forward_out[:, -1, :], backward_out[:, 0, :]], dim=1)
+        else:
+            bag_repr = out[:, -1, :]
+        bag_repr = self.dropout(bag_repr)
+        return bag_repr, out
+
+    def flatten_parameters(self):
+        self.lstm.flatten_parameters()
