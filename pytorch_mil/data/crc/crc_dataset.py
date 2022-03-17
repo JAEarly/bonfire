@@ -39,7 +39,12 @@ augmentation_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
                                              transforms.Normalize((0.8035, 0.6499, 0.8348), (0.0858, 0.1079, 0.0731))])
 
 
-class CrcDataset(MilDataset):
+class CRCDataset(MilDataset):
+
+    def __init__(self, bags, targets, ids, transform, instance_labels):
+        super().__init__("CRC", bags, targets, instance_labels)
+        self.transform = transform
+        self.ids = ids
 
     @classmethod
     def create_datasets(cls, patch_size=27, augment_train=True, random_state=12, verbose=False):
@@ -56,11 +61,10 @@ class CrcDataset(MilDataset):
         val_instance_labels = _get_instance_targets_for_bags(val_bags, img_id_to_instance_labels)
         test_instance_labels = _get_instance_targets_for_bags(test_bags, img_id_to_instance_labels)
 
-        train_dataset = CrcDataset(train_bags, train_targets, train_ids,
-                                   augmentation_transform if augment_train else basic_transform,
-                                   train_instance_labels)
-        val_dataset = CrcDataset(val_bags, val_targets, val_ids, basic_transform, val_instance_labels)
-        test_dataset = CrcDataset(test_bags, test_targets, test_ids, basic_transform, test_instance_labels)
+        train_dataset = CRCDataset(train_bags, train_targets, train_ids,
+                                   augmentation_transform if augment_train else basic_transform, train_instance_labels)
+        val_dataset = CRCDataset(val_bags, val_targets, val_ids, basic_transform, val_instance_labels)
+        test_dataset = CRCDataset(test_bags, test_targets, test_ids, basic_transform, test_instance_labels)
 
         if verbose:
             print('\n-- Train dataset --')
@@ -71,11 +75,6 @@ class CrcDataset(MilDataset):
             test_dataset.summarise()
 
         return train_dataset, val_dataset, test_dataset
-
-    def __init__(self, bags, targets, ids, transform, instance_labels):
-        super().__init__(bags, targets, instance_labels)
-        self.transform = transform
-        self.ids = ids
 
     def __getitem__(self, index):
         instances = self._load_instances(index)
@@ -196,3 +195,7 @@ def _get_instance_targets_for_bags(bags, instance_label_dict):
             bag_instance_labels.append(instance_labels)
         all_instance_labels.append(bag_instance_labels)
     return all_instance_labels
+
+
+if __name__ == "__main__":
+    dataset, _, _ = load_crc()
