@@ -65,3 +65,20 @@ class MuskGNN(models.ClusterGNN):
             'lr': 5e-4,
             'weight_decay': 1e-5,
         }
+
+
+class MuskMiLstm(models.MiLstm):
+
+    def __init__(self, device, d_enc=128, ds_enc_hid=(256,), d_lstm_hid=128, n_lstm_layers=2,
+                 bidirectional=True, ds_fc_hid=(64,), dropout=0.2):
+        encoder = mod.FullyConnectedStack(MUSK_D_IN, ds_enc_hid, d_enc, dropout, raw_last=False)
+        aggregator = agg.LstmAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional,
+                                        dropout, ds_fc_hid, MUSK_N_CLASSES)
+        super().__init__(device, MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS, encoder, aggregator)
+
+    @overrides
+    def suggest_train_params(self):
+        return {
+            'lr': 5e-4,
+            'weight_decay': 1e-5,
+        }
