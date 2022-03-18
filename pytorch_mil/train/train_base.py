@@ -49,6 +49,10 @@ class Trainer(ABC):
     def get_default_train_params(self):
         pass
 
+    @abstractmethod
+    def get_criterion(self):
+        pass
+
     def create_model(self):
         if self.model_params_override is not None:
             return self.model_clz(self.device, **self.model_params_override)
@@ -61,9 +65,6 @@ class Trainer(ABC):
         lr = self.get_train_param('lr')
         weight_decay = self.get_train_param('wd')
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
-
-    def get_criterion(self):
-        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
 
     def get_train_param(self, key):
         return self.train_params[key]
@@ -132,8 +133,8 @@ class Trainer(ABC):
 
                 # Early stopping
                 if patience is not None:
-                    if epoch_val_metrics[1] < best_val_loss:
-                        best_val_loss = epoch_val_metrics[1]
+                    if epoch_val_metrics.loss < best_val_loss:
+                        best_val_loss = epoch_val_metrics.loss
                         best_model = copy.deepcopy(model)
                         patience_tracker = 0
                     else:
@@ -147,12 +148,12 @@ class Trainer(ABC):
                 # Update progress bar
                 train_losses.append(epoch_train_loss)
                 val_metrics.append(epoch_val_metrics)
-                t.set_postfix(train_loss=epoch_train_loss, val_loss=epoch_val_metrics[1])
+                t.set_postfix(train_loss=epoch_train_loss, val_loss=epoch_val_metrics.loss)
                 t.update()
 
                 # Update Optuna
                 if trial is not None:
-                    trial.report(epoch_val_metrics[0], epoch)
+                    trial.report(epoch_val_metrics.key_metric(), epoch)
 
                     # Handle pruning based on the intermediate value.
                     if trial.should_prune():
@@ -204,12 +205,8 @@ class Trainer(ABC):
             del model
             final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
                                                   self.get_criterion(), verbose=False)
-            train_results, val_results, test_results = final_results
-            results.append([train_results[0], train_results[1],
-                            val_results[0], val_results[1],
-                            test_results[0], test_results[1]])
+            results.append(final_results)
             torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
-
         metrics.output_results(results)
 
     def plot_training(self, train_losses, val_metrics):
@@ -230,3 +227,15 @@ class Trainer(ABC):
         axes[1].set_ylabel('Accuracy')
         axes[1].legend(loc='best')
         plt.show()
+
+
+class ClassificationTrainer(Trainer, ABC):
+
+    def get_criterion(self):
+        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
+
+
+class RegressionTrainer(Trainer, ABC):
+
+    def get_criterion(self):
+        return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())

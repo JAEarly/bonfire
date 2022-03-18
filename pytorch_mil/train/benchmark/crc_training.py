@@ -5,10 +5,10 @@ from torch.utils.data import DataLoader
 from pytorch_mil.data.crc.crc_dataset import CrcDataset, CRC_N_CLASSES
 from pytorch_mil.data.mil_graph_dataset import GraphDataloader
 from pytorch_mil.model.models import ClusterGNN
-from pytorch_mil.train.train_base import Trainer
+from pytorch_mil.train.train_base import ClassificationTrainer
 
 
-class CrcTrainer(Trainer, ABC):
+class CrcTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):
         super().__init__(device, CRC_N_CLASSES, model_clz, model_params, "models/crc", train_params)
