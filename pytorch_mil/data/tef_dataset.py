@@ -14,7 +14,7 @@ TEF_N_EXPECTED_DIMS = 2  # i * f
 TEF_D_IN = 230
 
 
-class TEFDataset(MilDataset):
+class TefDataset(MilDataset):
 
     def __init__(self, dataset_name, bags, targets):
         super().__init__(dataset_name, bags, targets, None)
@@ -34,9 +34,9 @@ class TEFDataset(MilDataset):
                                   random_state=random_state)
         val_bags, test_bags, val_targets, test_targets = splits
 
-        train_dataset = TEFDataset(dataset_name, train_bags, train_targets)
-        val_dataset = TEFDataset(dataset_name, val_bags, val_targets)
-        test_dataset = TEFDataset(dataset_name, test_bags, test_targets)
+        train_dataset = TefDataset(dataset_name, train_bags, train_targets)
+        val_dataset = TefDataset(dataset_name, val_bags, val_targets)
+        test_dataset = TefDataset(dataset_name, test_bags, test_targets)
 
         return train_dataset, val_dataset, test_dataset
 
@@ -106,13 +106,13 @@ def normalise(bags):
 
 if __name__ == "__main__":
     print("\n -- TIGER -- ")
-    for d in TEFDataset.create_datasets("tiger"):
+    for d in TefDataset.create_datasets("tiger"):
         d.summarise()
 
     print("\n -- ELEPHANT -- ")
-    for d in TEFDataset.create_datasets("elephant"):
+    for d in TefDataset.create_datasets("elephant"):
         d.summarise()
 
     print("\n -- FOX -- ")
-    for d in TEFDataset.create_datasets("fox"):
+    for d in TefDataset.create_datasets("fox"):
         d.summarise()
