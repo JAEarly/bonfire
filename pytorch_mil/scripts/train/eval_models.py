@@ -2,7 +2,7 @@ import torch
 
 from pytorch_mil.data import load_datasets
 from pytorch_mil.model import load_model
-from pytorch_mil.train.train_util import eval_complete, output_results
+from pytorch_mil.train.metrics import eval_complete, output_results
 
 SEEDS = [868, 207, 702, 999, 119, 401, 74, 9, 741, 744]
 

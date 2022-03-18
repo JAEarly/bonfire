@@ -9,7 +9,7 @@ from torch import nn
 from tqdm import tqdm
 import os
 
-from pytorch_mil.train.train_util import eval_complete, eval_model, output_results
+from pytorch_mil.train.metrics import eval_complete, eval_model, output_results
 
 
 class Trainer(ABC):
