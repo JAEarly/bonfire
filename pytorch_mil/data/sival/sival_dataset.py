@@ -55,7 +55,7 @@ def create_full_dataset():
     parsed_data = parse_data_from_file()
     bag_names, bags, original_targets, instance_labels = parsed_data
     targets, instance_labels, selected_idxs = _convert_to_pos_neg_split(original_targets, instance_labels)
-    dataset = SIVALDataset(bag_names, bags, targets, instance_labels, original_targets)
+    dataset = SivalDataset(bag_names, bags, targets, instance_labels, original_targets)
     return dataset
 
 
@@ -130,7 +130,7 @@ def parse_line(line):
     return bag_name, features, instance_label
 
 
-class SIVALDataset(MilDataset):
+class SivalDataset(MilDataset):
 
     def __init__(self, bag_names, bags, targets, instance_targets, original_targets):
         super().__init__("sival", bags, targets, instance_targets)
@@ -159,9 +159,9 @@ class SIVALDataset(MilDataset):
         val_bag_names, val_bags, val_targets, val_ils, val_orig_targets = [splits[i] for i in [0, 2, 4, 6, 8]]
         test_bag_names, test_bags, test_targets, test_ils, test_orig_targets = [splits[i] for i in [1, 3, 5, 7, 9]]
 
-        train_dataset = SIVALDataset(train_bag_names, train_bags, train_targets, train_ils, train_orig_targets)
-        val_dataset = SIVALDataset(val_bag_names, val_bags, val_targets, val_ils, val_orig_targets)
-        test_dataset = SIVALDataset(test_bag_names, test_bags, test_targets, test_ils, test_orig_targets)
+        train_dataset = SivalDataset(train_bag_names, train_bags, train_targets, train_ils, train_orig_targets)
+        val_dataset = SivalDataset(val_bag_names, val_bags, val_targets, val_ils, val_orig_targets)
+        test_dataset = SivalDataset(test_bag_names, test_bags, test_targets, test_ils, test_orig_targets)
 
         return train_dataset, val_dataset, test_dataset
 
