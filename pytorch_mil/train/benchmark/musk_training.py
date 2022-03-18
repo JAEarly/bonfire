@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from pytorch_mil.data.musk_dataset import create_datasets, MUSK_N_CLASSES
 from pytorch_mil.model.models import ClusterGNN
 from pytorch_mil.train.train_base import Trainer
-from pytorch_mil.train.train_util import GraphDataloader
+from pytorch_mil.data.mil_graph_dataset import GraphDataloader
 
 
 class MuskTrainer(Trainer, ABC):

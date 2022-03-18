@@ -1,10 +1,9 @@
+from abc import ABC, abstractmethod
 from collections import Counter
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from abc import ABC, abstractmethod
-from torch_geometric.utils import dense_to_sparse
 
 
 # TODO Add abstract method to compute the mean.
@@ -21,22 +20,6 @@ class MilDataset(Dataset, ABC):
     @abstractmethod
     def create_datasets(cls, random_state=12):
         pass
-
-    def add_edges(self, eta=None):
-        self.edge_indexs = []
-        for bag in self.bags:
-            # If eta not set, create fully connected graph
-            if eta is None:
-                edge_index = torch.ones((len(bag), len(bag)))
-                edge_index, _ = dense_to_sparse(edge_index)
-                edge_index = edge_index.long().contiguous()
-            else:
-                dist = torch.cdist(bag, bag)
-                b_dist = torch.zeros_like(dist)
-                b_dist[dist < eta] = 1
-                edge_index = (dist < eta).nonzero().t()
-            edge_index = edge_index.long().contiguous()
-            self.edge_indexs.append(edge_index)
 
     def summarise(self, out_clz_dist=True):
         clz_dist = Counter(np.asarray(self.targets))

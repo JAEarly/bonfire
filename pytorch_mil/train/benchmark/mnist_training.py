@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from pytorch_mil.data.mnist_bags import create_andmil_datasets, MNIST_N_CLASSES
 from pytorch_mil.model.models import ClusterGNN
 from pytorch_mil.train.train_base import Trainer
-from pytorch_mil.train.train_util import GraphDataloader
+from pytorch_mil.data.mil_graph_dataset import GraphDataloader
 
 
 class MnistTrainer(Trainer, ABC):
