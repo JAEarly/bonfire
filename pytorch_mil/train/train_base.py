@@ -1,4 +1,5 @@
 import copy
+import os
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -7,9 +8,26 @@ import torch
 from matplotlib import pyplot as plt
 from torch import nn
 from tqdm import tqdm
-import os
 
-from pytorch_mil.train.metrics import eval_complete, eval_model, output_results
+from pytorch_mil.train import metrics
+
+
+# -- UNUSED --
+# def info_loss(outputs, targets, mi_scores):
+#     prediction_loss = nn.CrossEntropyLoss()(outputs, targets.long())
+#     mean_mi_scores = torch.mean(mi_scores, dim=0)
+#     mi_global, mi_local, mi_prior = mean_mi_scores[0], mean_mi_scores[1], mean_mi_scores[2]
+#     mi_loss = 0.8 * mi_global + 0.1 * mi_local + 0.1 * mi_prior
+#     return prediction_loss, mi_loss, mean_mi_scores
+
+
+def mil_collate_function(batch):
+    # Collate function with variable size inputs
+    #  Taken from https://discuss.pytorch.org/t/how-to-create-a-dataloader-with-variable-size-input/8278/2?u=ptrblck
+    data = [item[0] for item in batch]
+    target = [item[1] for item in batch]
+    target = torch.as_tensor(target)
+    return [data, target]
 
 
 class Trainer(ABC):
@@ -58,20 +76,37 @@ class Trainer(ABC):
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
         epoch_train_loss = 0
+        # epoch_prediction_loss = 0
+        # epoch_mi_loss = 0
+        # epoch_mi_sub_losses = torch.zeros(3)
         for data in train_dataloader:
             bags, targets = data[0], data[1].to(self.device)
             optimizer.zero_grad()
             outputs = model(bags)
+            # outputs, mi_scores = model(bags)
             loss = criterion(outputs, targets)
+            # prediction_loss, mi_loss, mi_sub_losses = criterion(outputs, targets, mi_scores)
+            # loss = prediction_loss + mi_loss
             loss.backward()
             optimizer.step()
             epoch_train_loss += loss.item()
+            # epoch_prediction_loss += prediction_loss.item()
+            # epoch_mi_loss += mi_loss.item()
+            # epoch_mi_sub_losses += mi_sub_losses.detach()
         epoch_train_loss /= len(train_dataloader)
-        epoch_train_loss = epoch_train_loss
-        epoch_val_metrics = eval_model(model, val_dataloader, criterion)
+        # epoch_prediction_loss /= len(train_dataloader)
+
+        # epoch_mi_loss /= len(train_dataloader)
+        # epoch_mi_sub_losses /= len(train_dataloader)
+
+        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, verbose=False)
+
         return epoch_train_loss, epoch_val_metrics
 
     def train_model(self, model, train_dataloader, val_dataloader, trial=None):
+        # Override current parameters with model suggested parameters
+        self.update_train_params(model.suggest_train_params())
+
         model.to(self.device)
         model.train()
 
@@ -131,8 +166,11 @@ class Trainer(ABC):
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
         best_model, train_losses, val_metrics, early_stopped = train_outputs
-        train_results, val_results, test_results = eval_complete(best_model, train_dataloader, val_dataloader,
-                                                                 test_dataloader, self.get_criterion(), verbose=verbose)
+        if hasattr(best_model, 'flatten_parameters'):
+            best_model.flatten_parameters()
+        train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
+                                                                         test_dataloader, self.get_criterion(),
+                                                                         verbose=verbose)
 
         if save_model:
             save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
@@ -160,19 +198,19 @@ class Trainer(ABC):
             print('Repeat {:d}/{:d}'.format(i + 1, num_repeats))
             repeat_seed = np.random.randint(low=1, high=1000)
             print('Seed: {:d}'.format(repeat_seed))
-            train_dataloader, val_dataloader, test_dataloader = self.load_datasets(seed=repeat_seed)
+            train_dataloader, val_dataloader, test_dataloader = self.load_dataloaders(seed=repeat_seed)
             model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
-            final_results = eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
-                                          self.get_criterion(), verbose=False)
+            final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
+                                                  self.get_criterion(), verbose=False)
             train_results, val_results, test_results = final_results
             results.append([train_results[0], train_results[1],
                             val_results[0], val_results[1],
                             test_results[0], test_results[1]])
             torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
 
-        output_results(results)
+        metrics.output_results(results)
 
     def plot_training(self, train_losses, val_metrics):
         fig, axes = plt.subplots(nrows=1, ncols=2)
