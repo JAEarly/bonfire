@@ -39,7 +39,7 @@ augmentation_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
                                              transforms.Normalize((0.8035, 0.6499, 0.8348), (0.0858, 0.1079, 0.0731))])
 
 
-class CRCDataset(MilDataset):
+class CrcDataset(MilDataset):
 
     def __init__(self, bags, targets, ids, transform, instance_labels):
         super().__init__("CRC", bags, targets, instance_labels)
@@ -61,10 +61,10 @@ class CRCDataset(MilDataset):
         val_instance_labels = _get_instance_targets_for_bags(val_bags, img_id_to_instance_labels)
         test_instance_labels = _get_instance_targets_for_bags(test_bags, img_id_to_instance_labels)
 
-        train_dataset = CRCDataset(train_bags, train_targets, train_ids,
+        train_dataset = CrcDataset(train_bags, train_targets, train_ids,
                                    augmentation_transform if augment_train else basic_transform, train_instance_labels)
-        val_dataset = CRCDataset(val_bags, val_targets, val_ids, basic_transform, val_instance_labels)
-        test_dataset = CRCDataset(test_bags, test_targets, test_ids, basic_transform, test_instance_labels)
+        val_dataset = CrcDataset(val_bags, val_targets, val_ids, basic_transform, val_instance_labels)
+        test_dataset = CrcDataset(test_bags, test_targets, test_ids, basic_transform, test_instance_labels)
 
         if verbose:
             print('\n-- Train dataset --')
