@@ -7,8 +7,11 @@ import optuna
 import torch
 from matplotlib import pyplot as plt
 from torch import nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from pytorch_mil.data.mil_graph_dataset import GraphDataloader
+from pytorch_mil.model.models import ClusterGNN
 from pytorch_mil.train import metrics
 
 
@@ -32,17 +35,17 @@ def mil_collate_function(batch):
 
 class Trainer(ABC):
 
-    def __init__(self, device, n_classes, model_clz, save_dir, model_params_override=None, train_params_override=None):
+    def __init__(self, device, n_classes, model_clz, save_dir, model_params=None, train_params_override=None):
         self.device = device
         self.n_classes = n_classes
         self.save_dir = save_dir
         self.model_clz = model_clz
-        self.model_params_override = model_params_override
+        self.model_params = model_params
         self.train_params = self.get_default_train_params()
         self.update_train_params(train_params_override)
 
     @abstractmethod
-    def load_dataloaders(self, seed=None):
+    def load_datasets(self, seed=None):
         pass
 
     @abstractmethod
@@ -53,9 +56,20 @@ class Trainer(ABC):
     def get_criterion(self):
         pass
 
+    def create_dataloader(self, dataset, batch_size):
+        raise NotImplementedError("Base trainer class does not provide a create_dataloader implementation. "
+                                  "You need to use a mixin: NetTrainerMixin, GNNTrainerMixin")
+
+    def create_dataloaders(self, seed, batch_size):
+        train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
+        train_dataloader = self.create_dataloader(train_dataset, batch_size)
+        val_dataloader = self.create_dataloader(val_dataset, batch_size)
+        test_dataloader = self.create_dataloader(test_dataset, batch_size)
+        return train_dataloader, val_dataloader, test_dataloader
+
     def create_model(self):
-        if self.model_params_override is not None:
-            return self.model_clz(self.device, **self.model_params_override)
+        if self.model_params is not None:
+            return self.model_clz(self.device, **self.model_params)
         return self.model_clz(self.device)
 
     def get_model_name(self):
@@ -63,7 +77,7 @@ class Trainer(ABC):
 
     def create_optimizer(self, model):
         lr = self.get_train_param('lr')
-        weight_decay = self.get_train_param('wd')
+        weight_decay = self.get_train_param('weight_decay')
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
 
     def get_train_param(self, key):
@@ -162,7 +176,7 @@ class Trainer(ABC):
         return best_model, train_losses, val_metrics, early_stopped
 
     def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
-        train_dataloader, val_dataloader, test_dataloader = self.load_dataloaders(seed=seed)
+        train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(seed, batch_size=1)
         model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
@@ -199,7 +213,7 @@ class Trainer(ABC):
             print('Repeat {:d}/{:d}'.format(i + 1, num_repeats))
             repeat_seed = np.random.randint(low=1, high=1000)
             print('Seed: {:d}'.format(repeat_seed))
-            train_dataloader, val_dataloader, test_dataloader = self.load_dataloaders(seed=repeat_seed)
+            train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(repeat_seed, batch_size=1)
             model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
@@ -239,3 +253,17 @@ class RegressionTrainer(Trainer, ABC):
 
     def get_criterion(self):
         return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())
+
+
+class NetTrainerMixin:
+
+    def create_dataloader(self, dataset, batch_size):
+        assert self.model_clz != ClusterGNN
+        return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
+
+
+class GNNTrainerMixin:
+
+    def create_dataloader(self, dataset, batch_size):
+        assert self.model_clz == ClusterGNN
+        return GraphDataloader(dataset)

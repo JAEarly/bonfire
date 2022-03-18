@@ -70,20 +70,20 @@ def eval_model(model, dataloader, criterion, verbose=False):
     model.eval()
     with torch.no_grad():
         labels = list(range(model.n_classes))
-        all_preds = []
+        all_probas = []
         all_targets = []
         for data in dataloader:
             bags, targets = data[0], data[1]
             bag_preds = model(bags)
-            all_preds.append(bag_preds.detach().cpu())
+            all_probas.append(bag_preds.detach().cpu())
             all_targets.append(targets.detach().cpu())
         all_targets = torch.cat(all_targets).long()
-        all_preds = torch.cat(all_preds)
+        all_probas = torch.cat(all_probas)
         if model.n_classes > 1:
             # Classification
-            _, all_preds = torch.max(F.softmax(all_preds, dim=1), dim=1)
+            _, all_preds = torch.max(F.softmax(all_probas, dim=1), dim=1)
             acc = accuracy_score(all_targets, all_preds)
-            loss = criterion(all_preds, all_targets).item()
+            loss = criterion(all_probas, all_targets).item()
             if verbose:
                 conf_mat = pd.DataFrame(
                     confusion_matrix(all_targets, all_preds, labels=labels),
@@ -96,13 +96,13 @@ def eval_model(model, dataloader, criterion, verbose=False):
             return ClassificationMetrics(acc, loss)
         else:
             # Regression
-            loss = criterion(all_preds, all_targets).item()
+            loss = criterion(all_probas, all_targets).item()
             if verbose:
                 print('Loss: {:.3f}'.format(loss))
             return RegressionMetrics(loss)
 
 
-def output_results(results: List[Tuple[Metrics * 3]]):
+def output_results(results: List[Tuple[Metrics, Metrics, Metrics]]):
     results_type = type(results[0][0])
     if results_type == ClassificationMetrics:
         output_classification_results(results)
@@ -112,7 +112,8 @@ def output_results(results: List[Tuple[Metrics * 3]]):
         raise NotImplementedError('No results output for metrics {:}'.format(results_type))
 
 
-def output_classification_results(results: List[Tuple[ClassificationMetrics * 3]]):
+def output_classification_results(results: List[Tuple[ClassificationMetrics, ClassificationMetrics,
+                                                      ClassificationMetrics]]):
     raw_results = []
     for (train_results, val_results, test_results) in results:
         raw_results.append([train_results.accuracy, train_results.loss,
@@ -137,7 +138,7 @@ def output_classification_results(results: List[Tuple[ClassificationMetrics * 3]
     print('Done!')
 
 
-def output_regression_results(results: List[Tuple[RegressionMetrics * 3]]):
+def output_regression_results(results: List[Tuple[RegressionMetrics, RegressionMetrics, RegressionMetrics]]):
     raw_results = []
     for (train_results, val_results, test_results) in results:
         raw_results.append([train_results.loss, val_results.loss, test_results.loss])

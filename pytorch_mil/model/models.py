@@ -70,13 +70,12 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
             raise ValueError('Invalid model input type {:}'.format(type(model_input)))
 
         # Actually pass the input through the model
-        #  We don't care about any interpretability output here
-        bag_predictions, _ = self._internal_forward(bags)
+        bag_predictions, bag_instance_predictions = self._internal_forward(bags)
 
         # If given input was not batched, also un-batch the output
         if unbatched_bag:
-            return bag_predictions[0]
-        return bag_predictions
+            return bag_predictions[0], bag_instance_predictions[0]
+        return bag_predictions, bag_instance_predictions
 
 
 # TODO all these classes are ABC - should they be?
