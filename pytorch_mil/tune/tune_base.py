@@ -1,10 +1,19 @@
+import inspect
 from abc import ABC, abstractmethod
 
 
 class Tuner(ABC):
 
+    model_clz = NotImplemented
+
     def __init__(self, device):
         self.device = device
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # All tuner concrete classes need to have a class attribute model_clz define
+        if cls.model_clz is NotImplemented and not inspect.isabstract(cls):
+            raise NotImplementedError('No model_clz defined for tuner {:}.'.format(cls))
 
     @abstractmethod
     def generate_train_params(self, trial):
