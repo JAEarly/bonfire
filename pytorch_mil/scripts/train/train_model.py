@@ -2,7 +2,7 @@ import argparse
 
 from pytorch_mil.model import models
 from pytorch_mil.train import get_trainer_clz
-from pytorch_mil.util.misc_util import get_device
+from pytorch_mil.util import get_device
 
 device = get_device()
 

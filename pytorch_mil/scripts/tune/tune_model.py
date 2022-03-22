@@ -2,7 +2,7 @@ import argparse
 
 from pytorch_mil.train import get_trainer_clz
 from pytorch_mil.tune.tune_util import setup_study, get_tuner_clz
-from pytorch_mil.util.misc_util import get_device
+from pytorch_mil.util import get_device
 
 device = get_device()
 
