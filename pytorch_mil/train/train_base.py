@@ -258,12 +258,12 @@ class RegressionTrainer(Trainer, ABC):
 class NetTrainerMixin:
 
     def create_dataloader(self, dataset, batch_size):
-        assert self.model_clz != ClusterGNN
+        assert ClusterGNN not in self.model_clz.__bases__
         return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
 
 
 class GNNTrainerMixin:
 
     def create_dataloader(self, dataset, batch_size):
-        assert self.model_clz == ClusterGNN
+        assert ClusterGNN in self.model_clz.__bases__
         return GraphDataloader(dataset)

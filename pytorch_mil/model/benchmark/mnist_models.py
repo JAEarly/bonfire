@@ -84,6 +84,7 @@ class FourMnistGNN(models.ClusterGNN):
             'weight_decay': 1e-5,
         }
 
+
 class FourMnistMiLstm(models.MiLstm):
 
     def __init__(self, device, d_enc=128, ds_enc_hid=(), d_lstm_hid=128, n_lstm_layers=1,

@@ -161,7 +161,13 @@ class ClusterGNN(MultipleInstanceModel, ABC):
         self.gnn_pool = SAGEConv(d_enc, self.n_clusters)
         self.classifier = mod.FullyConnectedStack(d_gnn, ds_fc_hid, n_classes, dropout, raw_last=True)
 
-    def _internal_forward(self, model_input):
+    def forward(self, model_input):
+        # We don't care about any interpretability output here
+        bag_predictions, _ = self.forward_verbose(model_input)
+        return bag_predictions
+
+    def forward_verbose(self, model_input):
+        # TODO ClusterGNN doesn't deal with batched inputs
         # Unbatched input could be Data type, or raw tensor without Data structure
         unbatched_bag = type(model_input) is Data or \
                         (type(model_input) is torch.Tensor and len(model_input.shape) == self.n_expec_dims)
@@ -171,14 +177,14 @@ class ClusterGNN(MultipleInstanceModel, ABC):
 
         # Actually pass the input through the model
         #  We don't care about any interpretability output here
-        bag_predictions, _ = self.forward_verbose(bags)
+        bag_predictions, bag_cluster_weights = self._internal_forward(bags)
 
         # Return single pred if unbatched_bag bag else multiple preds
         if unbatched_bag:
-            return bag_predictions.squeeze()
-        return bag_predictions
+            return bag_predictions.squeeze(), bag_cluster_weights[0]
+        return bag_predictions, bag_cluster_weights
 
-    def forward_verbose(self, bags):
+    def _internal_forward(self, bags):
         bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
         bag_cluster_weights = []
         for i, bag in enumerate(bags):
