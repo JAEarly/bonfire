@@ -4,6 +4,10 @@ from pytorch_mil.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset, FO
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
+def get_trainer_clzs():
+    return [FourMnistNetTrainer, FourMnistGNNTrainer]
+
+
 class FourMnistTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):

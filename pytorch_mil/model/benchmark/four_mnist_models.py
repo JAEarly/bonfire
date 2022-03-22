@@ -7,6 +7,10 @@ from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod
 
 
+def get_model_clzs():
+    return [FourMnistInstanceSpaceNN, FourMnistEmbeddingSpaceNN, FourMnistAttentionNN, FourMnistGNN, FourMnistMiLstm]
+
+
 class MnistEncoder(nn.Module):
 
     def __init__(self, ds_enc_hid, d_enc, dropout):
