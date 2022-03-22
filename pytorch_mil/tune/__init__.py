@@ -1,4 +1,4 @@
-from pytorch_mil.tune import count_mnist_tuning, crc_tuning, four_mnist_tuning, sival_tuning
+from pytorch_mil.tune.benchmark import sival_tuning, four_mnist_tuning, crc_tuning, count_mnist_tuning
 
 tuner_dict = {}
 

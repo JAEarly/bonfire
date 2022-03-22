@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.mnist_bags import FourMnistBagsDataset, FOURMNIST_N_CLASSES, \
+from pytorch_mil.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset, FOURMNIST_N_CLASSES, \
     CountMnistBagsDataset, COUNTMNIST_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 

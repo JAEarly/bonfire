@@ -1,10 +1,9 @@
 import os
 
 import numpy as np
-import scipy.io as sio
 from PIL import Image
 from tqdm import tqdm
-from pytorch_mil.data.crc.crc_dataset import load_crc_classes, binary_clz_names, tertiary_clz_names, orig_path, raw_path
+from pytorch_mil.data.benchmark.crc.crc_dataset import load_crc_classes, binary_clz_names, tertiary_clz_names, orig_path, raw_path
 
 # TODO remove tertiary clz name stuff
 # TODO move into dataset setup function

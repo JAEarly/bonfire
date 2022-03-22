@@ -1,7 +1,7 @@
 from overrides import overrides
 from torch import nn
 
-from pytorch_mil.data.mnist_bags import FOURMNIST_N_CLASSES, COUNTMNIST_N_CLASSES, MNIST_N_EXPECTED_DIMS, MNIST_FV_SIZE
+from pytorch_mil.data.benchmark.mnist.mnist_bags import FOURMNIST_N_CLASSES, COUNTMNIST_N_CLASSES, MNIST_N_EXPECTED_DIMS, MNIST_FV_SIZE
 from pytorch_mil.model import aggregator as agg
 from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod

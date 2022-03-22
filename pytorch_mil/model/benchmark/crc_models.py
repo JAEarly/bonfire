@@ -1,7 +1,7 @@
 from overrides import overrides
 from torch import nn
 
-from pytorch_mil.data.crc.crc_dataset import CRC_N_EXPECTED_DIMS, CRC_FV_SIZE, CRC_N_CLASSES
+from pytorch_mil.data.benchmark.crc.crc_dataset import CRC_N_EXPECTED_DIMS, CRC_FV_SIZE, CRC_N_CLASSES
 from pytorch_mil.model import aggregator as agg
 from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod

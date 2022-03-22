@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.musk_dataset import MuskDataset, MUSK_N_CLASSES
+from pytorch_mil.data.benchmark.musk.musk_dataset import MuskDataset, MUSK_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 

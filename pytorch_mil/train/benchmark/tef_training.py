@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.tef_dataset import TefDataset, TEF_N_CLASSES
+from pytorch_mil.data.benchmark.tef.tef_dataset import TefDataset, TEF_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 

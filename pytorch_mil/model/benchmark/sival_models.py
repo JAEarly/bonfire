@@ -1,6 +1,6 @@
 from overrides import overrides
 
-from pytorch_mil.data.sival.sival_dataset import SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS, SIVAL_D_IN
+from pytorch_mil.data.benchmark.sival.sival_dataset import SIVAL_N_CLASSES, SIVAL_N_EXPECTED_DIMS, SIVAL_D_IN
 from pytorch_mil.model import aggregator as agg
 from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod

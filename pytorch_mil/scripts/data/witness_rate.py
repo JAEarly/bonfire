@@ -3,9 +3,9 @@ from collections import Counter
 import numpy as np
 import torch
 
-from pytorch_mil.data.crc.crc_dataset import load_crc
-from pytorch_mil.data.mnist_bags import create_andmil_datasets
-from pytorch_mil.data.sival.sival_dataset import create_datasets
+from pytorch_mil.data.benchmark.crc.crc_dataset import load_crc
+from pytorch_mil.data.benchmark.mnist.mnist_bags import create_andmil_datasets
+from pytorch_mil.data.benchmark.sival.sival_dataset import create_datasets
 
 
 # TODO this should be in the dataset class

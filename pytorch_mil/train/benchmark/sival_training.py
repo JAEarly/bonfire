@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.sival.sival_dataset import SIVAL_N_CLASSES, SivalDataset
+from pytorch_mil.data.benchmark.sival.sival_dataset import SIVAL_N_CLASSES, SivalDataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 

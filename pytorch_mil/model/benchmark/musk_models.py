@@ -1,6 +1,6 @@
 from overrides import overrides
 
-from pytorch_mil.data.musk_dataset import MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS, MUSK_D_IN
+from pytorch_mil.data.benchmark.musk.musk_dataset import MUSK_N_CLASSES, MUSK_N_EXPECTED_DIMS, MUSK_D_IN
 from pytorch_mil.model import aggregator as agg
 from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod

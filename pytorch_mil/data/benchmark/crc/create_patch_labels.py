@@ -2,7 +2,7 @@ import csv
 
 import scipy.io as sio
 
-from pytorch_mil.data.crc.crc_dataset import orig_path, cell_types
+from pytorch_mil.data.benchmark.crc.crc_dataset import orig_path, cell_types
 
 # TODO move into dataset setup function
 

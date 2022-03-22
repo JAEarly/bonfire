@@ -1,6 +1,6 @@
 from overrides import overrides
 
-from pytorch_mil.data.tef_dataset import TEF_N_CLASSES, TEF_N_EXPECTED_DIMS, TEF_D_IN
+from pytorch_mil.data.benchmark.tef.tef_dataset import TEF_N_CLASSES, TEF_N_EXPECTED_DIMS, TEF_D_IN
 from pytorch_mil.model import aggregator as agg
 from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod

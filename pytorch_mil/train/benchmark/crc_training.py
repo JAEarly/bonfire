@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.crc.crc_dataset import CrcDataset, CRC_N_CLASSES
+from pytorch_mil.data.benchmark.crc.crc_dataset import CrcDataset, CRC_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
