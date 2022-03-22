@@ -62,6 +62,31 @@ class MilDataset(Dataset, ABC):
             sample_weights[i] = clz_weights[t.long()]
         return sample_weights
 
+    def calculate_witness_rate(self):
+        if self.instance_targets is None:
+            raise ValueError('Cannot calculate witness rate without instance targets.')
+        # Witness rate for each bag
+        wrs = []
+        # Iterate through instance targets for each bag
+        for bag_instance_targets in self.instance_targets:
+            # Get flat version of instance targets
+            flat_targets = []
+            for target in bag_instance_targets:
+                if type(target) is list:
+                    flat_targets.extend(target)
+                elif type(target) is torch.Tensor:
+                    flat_targets.append(target.item())
+                else:
+                    flat_targets.append(target)
+            # Count instance target classes
+            c = Counter(flat_targets)
+            # Witness rate is the percentage of non-zero instance targets
+            wr = (1 - c[0] / len(flat_targets)) * 100
+            wrs.append(wr)
+        # Average witness rate over all bags and return
+        wr = np.mean(wrs)
+        return wr
+
     def __len__(self):
         return len(self.bags)
 
