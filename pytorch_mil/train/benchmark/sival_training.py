@@ -4,6 +4,10 @@ from pytorch_mil.data.benchmark.sival.sival_dataset import SIVAL_N_CLASSES, Siva
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
+def get_trainer_clzs():
+    return [SivalNetTrainer, SivalGNNTrainer]
+
+
 class SivalTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):

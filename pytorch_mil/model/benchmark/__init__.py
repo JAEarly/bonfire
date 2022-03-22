@@ -1,4 +1,5 @@
-from pytorch_mil.model.benchmark import crc_models, count_mnist_models, four_mnist_models
+from pytorch_mil.model.benchmark import crc_models, count_mnist_models, four_mnist_models, musk_models, sival_models, \
+    tef_models
 
 
 def get_model_clz(dataset_name, model_name):
@@ -8,6 +9,12 @@ def get_model_clz(dataset_name, model_name):
         model_clzs = count_mnist_models.get_model_clzs()
     elif dataset_name == 'four_mnist':
         model_clzs = four_mnist_models.get_model_clzs()
+    elif dataset_name == 'musk':
+        model_clzs = musk_models.get_model_clzs()
+    elif dataset_name == 'sival':
+        model_clzs = sival_models.get_model_clzs()
+    elif dataset_name in ['tiger', 'elephant', 'fox']:
+        model_clzs = tef_models.get_model_clzs()
     else:
         raise ValueError('No models registered for dataset {:}'.format(dataset_name))
 

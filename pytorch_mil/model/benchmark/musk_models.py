@@ -6,6 +6,10 @@ from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod
 
 
+def get_model_clzs():
+    return [MuskInstanceSpaceNN, MuskEmbeddingSpaceNN, MuskAttentionNN, MuskGNN, MuskMiLstm]
+
+
 class MuskInstanceSpaceNN(models.InstanceSpaceNN):
 
     def __init__(self, device, d_enc=512, ds_enc_hid=(), ds_agg_hid=(256, 64), dropout=0.45, agg_func_name='mean'):

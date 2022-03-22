@@ -1,4 +1,5 @@
-from pytorch_mil.train.benchmark import crc_training, count_mnist_training, four_mnist_training
+from pytorch_mil.train.benchmark import crc_training, count_mnist_training, four_mnist_training, musk_training,\
+    sival_training, tef_training
 
 
 def get_trainer_clz(dataset_name, model_clz):
@@ -8,6 +9,12 @@ def get_trainer_clz(dataset_name, model_clz):
         trainer_clzs = count_mnist_training.get_trainer_clzs()
     elif dataset_name == 'four_mnist':
         trainer_clzs = four_mnist_training.get_trainer_clzs()
+    elif dataset_name == 'musk':
+        trainer_clzs = musk_training.get_trainer_clzs()
+    elif dataset_name == 'sival':
+        trainer_clzs = sival_training.get_trainer_clzs()
+    elif dataset_name in ['tiger', 'elephant', 'fox']:
+        trainer_clzs = tef_training.get_trainer_clzs()
     else:
         raise ValueError('No trainers found for dataset {:s}'.format(dataset_name))
 

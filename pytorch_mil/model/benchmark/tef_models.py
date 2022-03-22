@@ -6,6 +6,10 @@ from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod
 
 
+def get_model_clzs():
+    return [TefEmbeddingSpaceNN, TefInstanceSpaceNN, TefAttentionNN, TefGNN]
+
+
 class TefEmbeddingSpaceNN(models.EmbeddingSpaceNN):
 
     def __init__(self, device, d_enc=256, ds_enc_hid=(128,), ds_agg_hid=(), dropout=0.25, agg_func_name='max'):

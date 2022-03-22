@@ -4,6 +4,10 @@ from pytorch_mil.data.benchmark.tef.tef_dataset import TefDataset, TEF_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
+def get_trainer_clzs():
+    return [TefNetTrainer, TefGNNTrainer]
+
+
 class TefTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, dataset_name, model_params=None):

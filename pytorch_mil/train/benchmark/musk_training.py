@@ -4,6 +4,10 @@ from pytorch_mil.data.benchmark.musk.musk_dataset import MuskDataset, MUSK_N_CLA
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
+def get_trainer_clzs():
+    return [MuskNetTrainer, MuskGNNTrainer]
+
+
 class MuskTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None, musk_two=False):
