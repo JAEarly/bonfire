@@ -2,19 +2,20 @@ import os
 from datetime import datetime
 
 import optuna
-from pytorch_mil.tune import tune_base
 
 TUNE_ROOT_DIR = "out/tune"
 
 
 def _create_pruner():
-    return optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=25, interval_steps=5)
+    # return optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=25, interval_steps=5)
+    return optuna.pruners.SuccessiveHalvingPruner(min_early_stopping_rate=2)
 
 
-def setup_study(study_name, direction='maximize'):
+def setup_study(study_name, study_dir_path, direction='maximize'):
     timestamp = datetime.now().strftime('%Y-%m-%d-%H.%M.%S')
     study_uid = study_name + "_" + timestamp
-    study_path = TUNE_ROOT_DIR + "/" + study_uid
+    study_path = TUNE_ROOT_DIR + "/" + study_dir_path + "/" + study_uid
+    print('Creating study at: {:s}'.format(study_path))
     if not os.path.exists(study_path):
         os.makedirs(study_path)
     storage_uid = "sqlite:///{}/study.db".format(study_path)
@@ -22,9 +23,8 @@ def setup_study(study_name, direction='maximize'):
     return optuna.create_study(direction=direction, study_name=study_uid, storage=storage_uid, pruner=pruner)
 
 
-def load_study(study_name, timestamp, direction='Maximize'):
-    study_uid = study_name + "_" + timestamp
-    study_path = TUNE_ROOT_DIR + "/" + study_uid
+def load_study(study_uid, study_dir_path, direction='Maximize'):
+    study_path = TUNE_ROOT_DIR + "/" + study_dir_path + "/" + study_uid
     if not os.path.exists(study_path):
         raise FileNotFoundError('No study directory found at path: {:s}'.format(study_path))
     storage_uid = "sqlite:///{}/study.db".format(study_path)
@@ -33,23 +33,18 @@ def load_study(study_name, timestamp, direction='Maximize'):
                                pruner=pruner, load_if_exists=True, direction=direction)
 
 
-def generate_figure(plot_func, study, auto_open=True, **plot_args):
-    study_path = TUNE_ROOT_DIR + "/" + study.study_name
+def generate_figure(plot_func, study_dir_path, study, auto_open=True, **plot_args):
+    study_path = TUNE_ROOT_DIR + "/" + study_dir_path + "/" + study.study_name
     fig = plot_func(study, **plot_args)
     name = plot_func.__name__
     name = name[name.index('_') + 1:]
     fig.write_html("{:s}/{:s}.html".format(study_path, name), auto_open=auto_open)
 
 
-def get_tuner_clz(model_name):
-    if model_name == 'EmbeddingSpaceNN':
-        return tune_base.EmbeddingSpaceNNTuner
-    if model_name == 'InstanceSpaceNN':
-        return tune_base.InstanceSpaceNNTuner
-    if model_name == 'AttentionNN':
-        return tune_base.AttentionNNTuner
-    if model_name == 'MultiHeadAttentionNN':
-        return tune_base.MultiHeadAttentionNNTuner
-    if model_name == 'ClusterGNN':
-        return tune_base.ClusterGNNTuner
-    raise ValueError('No tuner found for model {:s}'.format(model_name))
+class TqdmOptunaCallBack:
+
+    def __init__(self, pbar):
+        self.pbar = pbar
+
+    def __call__(self, study, trial):
+        self.pbar.update()
