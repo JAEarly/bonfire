@@ -6,6 +6,10 @@ from pytorch_mil.model import models
 from pytorch_mil.model.benchmark.four_mnist_models import MnistEncoder
 
 
+def get_model_clzs():
+    return [CountMnistInstanceSpaceNN, CountMnistEmbeddingSpaceNN, CountMnistAttentionNN, CountMnistGNN]
+
+
 class CountMnistInstanceSpaceNN(models.InstanceSpaceNN):
 
     def __init__(self, device, d_enc=256, ds_enc_hid=(256,), ds_agg_hid=(128,), dropout=0.05, agg_func_name='mean'):

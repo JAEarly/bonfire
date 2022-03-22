@@ -1,9 +1,11 @@
-from pytorch_mil.model.benchmark import crc_models
+from pytorch_mil.model.benchmark import crc_models, count_mnist_models
 
 
 def get_model_clz(dataset_name, model_name):
     if dataset_name == 'crc':
         model_clzs = crc_models.get_model_clzs()
+    elif dataset_name == 'count_mnist':
+        model_clzs = count_mnist_models.get_model_clzs()
     else:
         raise ValueError('No models registered for dataset {:}'.format(dataset_name))
 
