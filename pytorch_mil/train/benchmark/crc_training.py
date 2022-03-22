@@ -4,6 +4,10 @@ from pytorch_mil.data.benchmark.crc.crc_dataset import CrcDataset, CRC_N_CLASSES
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
+def get_trainer_clzs():
+    return [CrcNetTrainer, CrcGNNTrainer]
+
+
 class CrcTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):

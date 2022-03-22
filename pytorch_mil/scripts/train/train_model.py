@@ -1,12 +1,12 @@
 import argparse
 
-from pytorch_mil.model import models
-from pytorch_mil.train import get_trainer_clz
+from pytorch_mil.model.benchmark import get_model_clz
+from pytorch_mil.train.benchmark import get_trainer_clz
 from pytorch_mil.util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
+DATASET_NAMES = ['crc', 'count_mnist', 'four_mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN']
 
 
@@ -26,13 +26,16 @@ def run_training(dataset_name, model_name, multiple=False):
     print('  Using model {:}'.format(model_name))
     print('  Using device {:}'.format(device))
     print('  Training {:s}'.format("multiple models" if multiple else "single model"))
-    model_clz = models.get_model_clz_from_name(model_name)
-    trainer_clz = get_trainer_clz(dataset_name, model_name)
+
+    model_clz = get_model_clz(dataset_name, model_name)
+    trainer_clz = get_trainer_clz(dataset_name, model_clz)
+    print('  Model Class: {:}'.format(model_clz))
+    print('  Trainer Class: {:}'.format(trainer_clz))
 
     if dataset_name in ['tiger', 'elephant', 'fox']:
-        trainer = trainer_clz(device, model_clz, dataset_name)
+        trainer = trainer_clz(device, {}, model_clz, dataset_name)
     else:
-        trainer = trainer_clz(device, model_clz)
+        trainer = trainer_clz(device, {}, model_clz)
 
     if multiple:
         trainer.train_multiple()

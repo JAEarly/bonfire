@@ -7,6 +7,10 @@ from pytorch_mil.model import models
 from pytorch_mil.model import modules as mod
 
 
+def get_model_clzs():
+    return [CrcInstanceSpaceNN, CrcEmbeddingSpaceNN, CrcAttentionNN, CrcGNN, CrcMiLSTM]
+
+
 class CrcEncoder(nn.Module):
 
     def __init__(self, ds_enc_hid, d_enc, dropout):
@@ -85,7 +89,7 @@ class CrcGNN(models.ClusterGNN):
         }
 
 
-class CrcMiLSTM(models.AttentionNN):
+class CrcMiLSTM(models.MiLstm):
 
     def __init__(self, device, d_enc=256, ds_enc_hid=(64, 64), d_lstm_hid=256, n_lstm_layers=1,
                  bidirectional=False, ds_fc_hid=(), dropout=0.2):

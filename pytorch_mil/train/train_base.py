@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from pytorch_mil.data.mil_graph_dataset import GraphDataloader
-from pytorch_mil.model.models import ClusterGNN
+from pytorch_mil.model import models
 from pytorch_mil.train import metrics
 
 
@@ -257,13 +257,19 @@ class RegressionTrainer(Trainer, ABC):
 
 class NetTrainerMixin:
 
+    base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
+
     def create_dataloader(self, dataset, batch_size):
-        assert ClusterGNN not in self.model_clz.__bases__
+        if self.model_clz.__base__ not in self.base_models:
+            raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
         return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
 
 
 class GNNTrainerMixin:
 
+    base_models = [models.ClusterGNN]
+
     def create_dataloader(self, dataset, batch_size):
-        assert ClusterGNN in self.model_clz.__bases__
+        if self.model_clz.__base__ not in self.base_models:
+            raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
         return GraphDataloader(dataset)
