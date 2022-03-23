@@ -37,7 +37,7 @@ def mil_collate_function(batch):
 
 class Trainer(ABC):
 
-    metric_type = NotImplemented
+    metric_clz = NotImplemented
 
     def __init__(self, device, n_classes, model_clz, save_dir, model_params=None, train_params_override=None):
         self.device = device
@@ -51,7 +51,7 @@ class Trainer(ABC):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         # All trainer concrete classes need to have a class attribute metric_type defined
-        if cls.metric_type is NotImplemented and not inspect.isabstract(cls):
+        if cls.metric_clz is NotImplemented and not inspect.isabstract(cls):
             raise NotImplementedError('No metric_type defined for tuner {:}.'.format(cls))
 
     @abstractmethod
@@ -64,6 +64,10 @@ class Trainer(ABC):
 
     @abstractmethod
     def get_criterion(self):
+        pass
+
+    @abstractmethod
+    def plot_training(self, train_metrics, val_metrics):
         pass
 
     def create_dataloader(self, dataset, batch_size):
@@ -100,7 +104,7 @@ class Trainer(ABC):
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
-        epoch_train_loss = 0
+        # epoch_train_loss = 0
         # epoch_prediction_loss = 0
         # epoch_mi_loss = 0
         # epoch_mi_sub_losses = torch.zeros(3)
@@ -114,19 +118,20 @@ class Trainer(ABC):
             # loss = prediction_loss + mi_loss
             loss.backward()
             optimizer.step()
-            epoch_train_loss += loss.item()
+            # epoch_train_loss += loss.item()
             # epoch_prediction_loss += prediction_loss.item()
             # epoch_mi_loss += mi_loss.item()
             # epoch_mi_sub_losses += mi_sub_losses.detach()
-        epoch_train_loss /= len(train_dataloader)
+        # epoch_train_loss /= len(train_dataloader)
         # epoch_prediction_loss /= len(train_dataloader)
 
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, self.metric_type)
+        epoch_train_metrics = metrics.eval_model(model, train_dataloader, criterion, self.metric_clz)
+        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, self.metric_clz)
 
-        return epoch_train_loss, epoch_val_metrics
+        return epoch_train_metrics, epoch_val_metrics
 
     def train_model(self, model, train_dataloader, val_dataloader, trial=None):
         # Override current parameters with model suggested parameters
@@ -143,22 +148,30 @@ class Trainer(ABC):
         n_epochs = self.get_train_param('n_epochs')
         patience = self.get_train_param('patience')
 
-        train_losses = []
+        train_metrics = []
         val_metrics = []
 
         best_model = None
-        best_val_loss = float("inf")
+
+        if self.metric_clz.optimise_direction == 'maximize':
+            best_key_metric = float("-inf")
+        elif self.metric_clz.optimise_direction == 'minimise':
+            best_key_metric = float("inf")
+        else:
+            raise ValueError('Invalid optimise direction {:}'.format(self.metric_clz.optimise_direction))
 
         with tqdm(total=n_epochs, desc='Training model', leave=False) as t:
             for epoch in range(n_epochs):
                 # Train model for an epoch
                 epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader, val_dataloader)
-                epoch_train_loss, epoch_val_metrics = epoch_outputs
+                epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
                 # Early stopping
                 if patience is not None:
-                    if epoch_val_metrics.loss < best_val_loss:
-                        best_val_loss = epoch_val_metrics.loss
+                    new_key_metric = epoch_val_metrics.key_metric()
+                    if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
+                            self.metric_clz.optimise_direction == 'minimise' and new_key_metric < best_key_metric:
+                        best_key_metric = new_key_metric
                         best_model = copy.deepcopy(model)
                         patience_tracker = 0
                     else:
@@ -170,9 +183,10 @@ class Trainer(ABC):
                     best_model = copy.deepcopy(model)
 
                 # Update progress bar
-                train_losses.append(epoch_train_loss)
+                train_metrics.append(epoch_train_metrics)
                 val_metrics.append(epoch_val_metrics)
-                t.set_postfix(train_loss=epoch_train_loss, val_loss=epoch_val_metrics.loss)
+                t.set_postfix(train_metrics=epoch_train_metrics.short_string_repr(),
+                              val_metrics=epoch_val_metrics.short_string_repr())
                 t.update()
 
                 # Update Optuna
@@ -183,19 +197,19 @@ class Trainer(ABC):
                     if trial.should_prune():
                         raise optuna.exceptions.TrialPruned()
 
-        return best_model, train_losses, val_metrics, early_stopped
+        return best_model, train_metrics, val_metrics, early_stopped
 
     def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
         train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(seed, batch_size=1)
         model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
-        best_model, train_losses, val_metrics, early_stopped = train_outputs
+        best_model, train_metrics, val_metrics, early_stopped = train_outputs
         if hasattr(best_model, 'flatten_parameters'):
             best_model.flatten_parameters()
         train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
                                                                          test_dataloader, self.get_criterion(),
-                                                                         self.metric_type, verbose=verbose)
+                                                                         self.metric_clz, verbose=verbose)
 
         if save_model:
             save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
@@ -205,7 +219,7 @@ class Trainer(ABC):
             torch.save(best_model.state_dict(), save_path)
 
         if show_plot:
-            self.plot_training(train_losses, val_metrics)
+            self.plot_training(train_metrics, val_metrics)
 
         return best_model, train_results, val_results, test_results, early_stopped
 
@@ -228,42 +242,46 @@ class Trainer(ABC):
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
             final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
-                                                  self.get_criterion(), self.metric_type, verbose=False)
+                                                  self.get_criterion(), self.metric_clz, verbose=False)
             results.append(final_results)
             torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
         metrics.output_results(results)
 
-    def plot_training(self, train_losses, val_metrics):
-        fig, axes = plt.subplots(nrows=1, ncols=2)
-        x_range = range(len(train_losses))
-        axes[0].plot(x_range, train_losses, label='Train')
-        axes[0].plot(x_range, [m[1] for m in val_metrics], label='Validation')
-        axes[0].set_xlim(0, len(x_range))
-        axes[0].set_ylim(min(min(train_losses), min([m[1] for m in val_metrics])) * 0.95,
-                         max(max(train_losses), max([m[1] for m in val_metrics])) * 1.05)
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('Loss')
-
-        axes[1].plot(x_range, [m[0] for m in val_metrics], label='Validation')
-        axes[1].set_xlim(0, len(x_range))
-        axes[1].set_ylim(min([m[0] for m in val_metrics]) * 0.95, max([m[0] for m in val_metrics]) * 1.05)
-        axes[1].set_xlabel('Epoch')
-        axes[1].set_ylabel('Accuracy')
-        axes[1].legend(loc='best')
-        plt.show()
-
 
 class ClassificationTrainer(Trainer, ABC):
 
-    metric_type = ClassificationMetric
+    metric_clz = ClassificationMetric
 
     def get_criterion(self):
         return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
 
+    def plot_training(self, train_metrics, val_metrics):
+        x_range = range(len(train_metrics))
+        train_accs = [m.accuracy for m in train_metrics]
+        train_losses = [m.loss for m in train_metrics]
+        val_accs = [m.accuracy for m in val_metrics]
+        val_losses = [m.loss for m in val_metrics]
+
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        axes[0].plot(x_range, train_accs, label='Train')
+        axes[0].plot(x_range, val_accs, label='Validation')
+        axes[0].set_xlim(0, len(x_range))
+        axes[0].set_ylim(min(min(train_accs), min(val_accs)) * 0.95, max(max(train_accs), max(val_accs)) * 1.05)
+        axes[0].set_xlabel('Epoch')
+        axes[0].set_ylabel('Accuracy')
+        axes[1].plot(x_range, train_losses, label='Train')
+        axes[1].plot(x_range, val_losses, label='Validation')
+        axes[1].set_xlim(0, len(x_range))
+        axes[1].set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
+        axes[1].set_xlabel('Epoch')
+        axes[1].set_ylabel('Cross Entropy Loss')
+        axes[1].legend(loc='best')
+        plt.show()
+
 
 class MaximizeRegressionTrainer(Trainer, ABC):
 
-    metric_type = MaximizeRegressionMetric
+    metric_clz = MaximizeRegressionMetric
 
     def get_criterion(self):
         raise NotImplementedError
@@ -271,10 +289,24 @@ class MaximizeRegressionTrainer(Trainer, ABC):
 
 class MinimiseRegressionTrainer(Trainer, ABC):
 
-    metric_type = MinimiseRegressionMetric
+    metric_clz = MinimiseRegressionMetric
 
     def get_criterion(self):
         return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())
+
+    def plot_training(self, train_metrics, val_metrics):
+        x_range = range(len(train_metrics))
+        train_losses = [m.loss for m in train_metrics]
+        val_losses = [m.loss for m in val_metrics]
+
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        axes[0].plot(x_range, train_losses, label='Train')
+        axes[0].plot(x_range, val_losses, label='Validation')
+        axes[0].set_xlim(0, len(x_range))
+        axes[0].set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
+        axes[0].set_xlabel('Epoch')
+        axes[0].set_ylabel('MSE Loss')
+        plt.show()
 
 
 class NetTrainerMixin:

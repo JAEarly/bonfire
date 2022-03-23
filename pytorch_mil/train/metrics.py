@@ -34,6 +34,14 @@ class Metric(ABC):
     def calculate_metric(probas, targets, criterion, labels):
         pass
 
+    @abstractmethod
+    def short_string_repr(self):
+        pass
+
+    @abstractmethod
+    def output(self):
+        pass
+
 
 class ClassificationMetric(Metric):
 
@@ -59,6 +67,14 @@ class ClassificationMetric(Metric):
         )
         return ClassificationMetric(acc, loss, conf_mat)
 
+    def short_string_repr(self):
+        return "{{Acc: {:.3f}; Loss: {:.3f}}}".format(self.accuracy, self.loss)
+
+    def output(self):
+        print('Acc: {:.3f}'.format(self.accuracy))
+        print('Loss: {:.3f}'.format(self.loss))
+        print(self.conf_mat)
+
 
 class RegressionMetric(Metric, ABC):
 
@@ -73,25 +89,36 @@ class RegressionMetric(Metric, ABC):
         loss = criterion(probas, targets).item()
         return RegressionMetric(loss)
 
+    def short_string_repr(self):
+        return "{{Loss: {:.3f}}}".format(self.loss)
+
+    def output(self):
+        print('Loss: {:.3f}'.format(self.loss))
+
 
 class MaximizeRegressionMetric(RegressionMetric):
+
     optimise_direction = 'maximize'
 
 
 class MinimiseRegressionMetric(RegressionMetric):
+
     optimise_direction = 'minimise'
 
 
 def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, metric: Metric, verbose=False):
-    if verbose:
-        print('\n-- Train Results --')
     train_results = eval_model(model, train_dataloader, criterion, metric)
     if verbose:
-        print('\n-- Val Results --')
+        print('\n-- Train Results --')
+        train_results.output()
     val_results = eval_model(model, val_dataloader, criterion, metric)
     if verbose:
-        print('\n-- Test Results --')
+        print('\n-- Val Results --')
+        val_results.output()
     test_results = eval_model(model, test_dataloader, criterion, metric)
+    if verbose:
+        print('\n-- Test Results --')
+        test_results.output()
     return train_results, val_results, test_results
 
 

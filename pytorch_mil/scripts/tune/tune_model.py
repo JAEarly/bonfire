@@ -34,7 +34,7 @@ def run_tuning(dataset_name, model_name, n_trials):
     print('  Trainer Class: {:}'.format(trainer_clz))
     print('  Tuner Class: {:}'.format(tuner_clz))
 
-    direction = trainer_clz.metric_type.optimise_direction
+    direction = trainer_clz.metric_clz.optimise_direction
     print('  Direction: {:s}'.format(direction))
 
     study = setup_study("Optimise-{:s}-{:s}".format(dataset_name, model_name),

@@ -32,10 +32,15 @@ def run_training(dataset_name, model_name, multiple=False):
     print('  Model Class: {:}'.format(model_clz))
     print('  Trainer Class: {:}'.format(trainer_clz))
 
+    train_params = {
+        'n_epochs': 100,
+        'patience': None
+    }
+
     if dataset_name in ['tiger', 'elephant', 'fox']:
-        trainer = trainer_clz(device, {}, model_clz, dataset_name)
+        trainer = trainer_clz(device, train_params, model_clz, dataset_name)
     else:
-        trainer = trainer_clz(device, {}, model_clz)
+        trainer = trainer_clz(device, train_params, model_clz)
 
     if multiple:
         trainer.train_multiple()

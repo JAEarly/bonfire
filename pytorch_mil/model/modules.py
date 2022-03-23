@@ -129,15 +129,24 @@ class LstmBlock(nn.Module):
 
     def __init__(self, d_in, d_hid, n_layers, bidirectional, dropout):
         super().__init__()
+        self.pre_layer_norm = nn.LayerNorm(d_in)
+        # For the LSTM block, a non-zero dropout expects num_layers greater than 1
         self.lstm = nn.LSTM(input_size=d_in, hidden_size=d_hid, num_layers=n_layers,
-                            bidirectional=bidirectional, batch_first=True, dropout=dropout)
+                            bidirectional=bidirectional, batch_first=True, dropout=0 if n_layers == 1 else dropout)
         self.bidirectional = bidirectional
         self.d_hid = d_hid
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x):
         _, n_instances, _ = x.shape
+
+        # Normalise before lstm block
+        x = self.pre_layer_norm(x)
+
+        # Pass through lstm
         out, (ht, _) = self.lstm(x)
+
+        # Get lstm output
         if self.bidirectional:
             out_split = out.view(1, n_instances, 2, self.d_hid)
             forward_out = out_split[:, :, 0, :]
@@ -145,6 +154,7 @@ class LstmBlock(nn.Module):
             bag_repr = torch.cat([forward_out[:, -1, :], backward_out[:, 0, :]], dim=1)
         else:
             bag_repr = out[:, -1, :]
+
         bag_repr = self.dropout(bag_repr)
         return bag_repr, out
 
