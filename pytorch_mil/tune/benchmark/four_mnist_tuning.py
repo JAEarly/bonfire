@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.model.benchmark import mnist_models
-from pytorch_mil.train.benchmark.mnist_training import FourMnistNetTrainer, FourMnistGNNTrainer
+from pytorch_mil.model.benchmark import four_mnist_models
+from pytorch_mil.train.benchmark.four_mnist_training import FourMnistNetTrainer, FourMnistGNNTrainer
 from pytorch_mil.tune.tune_base import Tuner
 
 
@@ -29,7 +29,7 @@ class MnistTuner(Tuner, ABC):
 
 class MnistInstanceSpaceNNTuner(MnistTuner):
 
-    model_clz = mnist_models.FourMnistInstanceSpaceNN
+    model_clz = four_mnist_models.FourMnistInstanceSpaceNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -52,7 +52,7 @@ class MnistInstanceSpaceNNTuner(MnistTuner):
 
 class MnistEmbeddingSpaceNNTuner(MnistTuner):
 
-    model_clz = mnist_models.FourMnistEmbeddingSpaceNN
+    model_clz = four_mnist_models.FourMnistEmbeddingSpaceNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -75,7 +75,7 @@ class MnistEmbeddingSpaceNNTuner(MnistTuner):
 
 class MnistAttentionNNTuner(MnistTuner):
 
-    model_clz = mnist_models.FourMnistAttentionNN
+    model_clz = four_mnist_models.FourMnistAttentionNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -98,7 +98,7 @@ class MnistAttentionNNTuner(MnistTuner):
 
 class MnistGNNTuner(MnistTuner):
 
-    model_clz = mnist_models.FourMnistGNN
+    model_clz = four_mnist_models.FourMnistGNN
 
     def __init__(self, device):
         super().__init__(device)

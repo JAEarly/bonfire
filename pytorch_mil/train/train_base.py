@@ -1,4 +1,5 @@
 import copy
+import inspect
 import os
 from abc import ABC, abstractmethod
 
@@ -13,6 +14,7 @@ from tqdm import tqdm
 from pytorch_mil.data.mil_graph_dataset import GraphDataloader
 from pytorch_mil.model import models
 from pytorch_mil.train import metrics
+from pytorch_mil.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
 
 
 # -- UNUSED --
@@ -35,6 +37,8 @@ def mil_collate_function(batch):
 
 class Trainer(ABC):
 
+    metric_type = NotImplemented
+
     def __init__(self, device, n_classes, model_clz, save_dir, model_params=None, train_params_override=None):
         self.device = device
         self.n_classes = n_classes
@@ -43,6 +47,12 @@ class Trainer(ABC):
         self.model_params = model_params
         self.train_params = self.get_default_train_params()
         self.update_train_params(train_params_override)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # All trainer concrete classes need to have a class attribute metric_type defined
+        if cls.metric_type is NotImplemented and not inspect.isabstract(cls):
+            raise NotImplementedError('No metric_type defined for tuner {:}.'.format(cls))
 
     @abstractmethod
     def load_datasets(self, seed=None):
@@ -114,7 +124,7 @@ class Trainer(ABC):
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, verbose=False)
+        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, self.metric_type)
 
         return epoch_train_loss, epoch_val_metrics
 
@@ -185,7 +195,7 @@ class Trainer(ABC):
             best_model.flatten_parameters()
         train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
                                                                          test_dataloader, self.get_criterion(),
-                                                                         verbose=verbose)
+                                                                         self.metric_type, verbose=verbose)
 
         if save_model:
             save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
@@ -218,7 +228,7 @@ class Trainer(ABC):
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
             final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
-                                                  self.get_criterion(), verbose=False)
+                                                  self.get_criterion(), self.metric_type, verbose=False)
             results.append(final_results)
             torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
         metrics.output_results(results)
@@ -245,11 +255,23 @@ class Trainer(ABC):
 
 class ClassificationTrainer(Trainer, ABC):
 
+    metric_type = ClassificationMetric
+
     def get_criterion(self):
         return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
 
 
-class RegressionTrainer(Trainer, ABC):
+class MaximizeRegressionTrainer(Trainer, ABC):
+
+    metric_type = MaximizeRegressionMetric
+
+    def get_criterion(self):
+        raise NotImplementedError
+
+
+class MinimiseRegressionTrainer(Trainer, ABC):
+
+    metric_type = MinimiseRegressionMetric
 
     def get_criterion(self):
         return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())

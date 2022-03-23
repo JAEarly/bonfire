@@ -1,38 +1,51 @@
 import argparse
 
-from pytorch_mil.train import get_trainer_clz
-from pytorch_mil.tune.tune_util import setup_study, get_tuner_clz
+from pytorch_mil.model.benchmark import get_model_clz
+from pytorch_mil.train.benchmark import get_trainer_clz
+from pytorch_mil.tune.benchmark import get_tuner_clz
+from pytorch_mil.tune.tune_util import setup_study
 from pytorch_mil.util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
-MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN']
+DATASET_NAMES = ['crc', 'count_mnist', 'four_mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
+MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN', 'MiLSTM']
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Builtin PyTorch MIL tuning script.')
     parser.add_argument('dataset_name', choices=DATASET_NAMES, help='The dataset to use.')
     parser.add_argument('model_name', choices=MODEL_NAMES, help='The model to tune.')
+    parser.add_argument('-n', '--n_trials', default=100, help='The number of trials to run when tuning the model.')
     args = parser.parse_args()
-    return args.dataset_name, args.model_name
+    return args.dataset_name, args.model_name, args.n_trials
 
 
-def make_tuner(dataset_name, model_name):
-    trainer_clz = get_trainer_clz(dataset_name, model_name)
-    tuner_clz = get_tuner_clz(model_name)
-    return tuner_clz(device, trainer_clz, dataset_name)
-
-
-def run_tuning(dataset_name, model_name):
+def run_tuning(dataset_name, model_name, n_trials):
     print('Starting {:s} tuning'.format(dataset_name))
     print('  Using model {:}'.format(model_name))
+    print('  Using dataset {:}'.format(dataset_name))
     print('  Using device {:}'.format(device))
-    study = setup_study("Optimise-{:s}".format(model_name))
-    tuner = make_tuner(dataset_name, model_name)
-    study.optimize(tuner, n_trials=100)
+
+    model_clz = get_model_clz(dataset_name, model_name)
+    trainer_clz = get_trainer_clz(dataset_name, model_clz)
+    tuner_clz = get_tuner_clz(model_clz)
+    print('  Model Class: {:}'.format(model_clz))
+    print('  Trainer Class: {:}'.format(trainer_clz))
+    print('  Tuner Class: {:}'.format(tuner_clz))
+
+    direction = trainer_clz.metric_type.optimise_direction
+    print('  Direction: {:s}'.format(direction))
+
+    study = setup_study("Optimise-{:s}-{:s}".format(dataset_name, model_name),
+                        "{:s}/{:s}".format(dataset_name, model_name),
+                        direction=direction)
+    tuner = tuner_clz(device)
+
+    print('  Running study with {:d} trials'.format(n_trials))
+    study.optimize(tuner, n_trials=n_trials)
 
 
 if __name__ == "__main__":
-    _dataset_name, _model_name = parse_args()
-    run_tuning(_dataset_name, _model_name)
+    _dataset_name, _model_name, _n_trials = parse_args()
+    run_tuning(_dataset_name, _model_name, _n_trials)

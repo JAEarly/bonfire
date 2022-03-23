@@ -1,14 +1,14 @@
 from abc import ABC
 
 from pytorch_mil.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset, COUNTMNIST_N_CLASSES
-from pytorch_mil.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from pytorch_mil.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
     return [CountMnistNetTrainer, CountMnistGNNTrainer]
 
 
-class CountMnistTrainer(RegressionTrainer, ABC):
+class CountMnistTrainer(MinimiseRegressionTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):
         super().__init__(device, COUNTMNIST_N_CLASSES, model_clz, "models/count_mnist", model_params, train_params)

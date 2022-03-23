@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.model.benchmark import mnist_models
-from pytorch_mil.train.benchmark.mnist_training import CountMnistNetTrainer, CountMnistGNNTrainer
+from pytorch_mil.model.benchmark import count_mnist_models
+from pytorch_mil.train.benchmark.count_mnist_training import CountMnistNetTrainer, CountMnistGNNTrainer
 from pytorch_mil.tune.tune_base import Tuner
 
 
@@ -30,7 +30,7 @@ class CountMnistTuner(Tuner, ABC):
 
 class CountMnistInstanceSpaceNNTuner(CountMnistTuner):
 
-    model_clz = mnist_models.CountMnistInstanceSpaceNN
+    model_clz = count_mnist_models.CountMnistInstanceSpaceNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -53,7 +53,7 @@ class CountMnistInstanceSpaceNNTuner(CountMnistTuner):
 
 class CountMnistEmbeddingSpaceNNTuner(CountMnistTuner):
 
-    model_clz = mnist_models.CountMnistEmbeddingSpaceNN
+    model_clz = count_mnist_models.CountMnistEmbeddingSpaceNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -76,7 +76,7 @@ class CountMnistEmbeddingSpaceNNTuner(CountMnistTuner):
 
 class CountMnistAttentionNNTuner(CountMnistTuner):
 
-    model_clz = mnist_models.CountMnistAttentionNN
+    model_clz = count_mnist_models.CountMnistAttentionNN
 
     def __init__(self, device):
         super().__init__(device)
@@ -99,7 +99,7 @@ class CountMnistAttentionNNTuner(CountMnistTuner):
 
 class CountMnistGNNTuner(CountMnistTuner):
 
-    model_clz = mnist_models.CountMnistGNN
+    model_clz = count_mnist_models.CountMnistGNN
 
     def __init__(self, device):
         super().__init__(device)

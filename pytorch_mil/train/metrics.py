@@ -10,7 +10,7 @@ from texttable import Texttable
 from typing import List, Tuple
 
 
-class Metrics(ABC):
+class Metric(ABC):
 
     @abstractmethod
     def key_metric(self):
@@ -29,22 +29,38 @@ class Metrics(ABC):
         :return:
         """
 
+    @staticmethod
+    @abstractmethod
+    def calculate_metric(probas, targets, criterion, labels):
+        pass
 
-class ClassificationMetrics(Metrics):
 
-    optimise_direction = 'maximise'
+class ClassificationMetric(Metric):
 
-    def __init__(self, accuracy, loss):
+    optimise_direction = 'maximize'
+
+    def __init__(self, accuracy, loss, conf_mat):
         self.accuracy = accuracy
         self.loss = loss
+        self.conf_mat = conf_mat
 
     def key_metric(self):
         return self.accuracy
 
+    @staticmethod
+    def calculate_metric(probas, targets, criterion, labels):
+        _, preds = torch.max(F.softmax(probas, dim=1), dim=1)
+        acc = accuracy_score(targets, preds)
+        loss = criterion(probas, targets).item()
+        conf_mat = pd.DataFrame(
+            confusion_matrix(targets, preds, labels=labels),
+            index=pd.Index(labels, name='Actual'),
+            columns=pd.Index(labels, name='Predicted')
+        )
+        return ClassificationMetric(acc, loss, conf_mat)
 
-class RegressionMetrics(Metrics):
 
-    optimise_direction = 'minimise'
+class RegressionMetric(Metric, ABC):
 
     def __init__(self, loss):
         self.loss = loss
@@ -52,21 +68,34 @@ class RegressionMetrics(Metrics):
     def key_metric(self):
         return self.loss
 
+    @staticmethod
+    def calculate_metric(probas, targets, criterion, labels):
+        loss = criterion(probas, targets).item()
+        return RegressionMetric(loss)
 
-def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, verbose=False):
+
+class MaximizeRegressionMetric(RegressionMetric):
+    optimise_direction = 'maximize'
+
+
+class MinimiseRegressionMetric(RegressionMetric):
+    optimise_direction = 'minimise'
+
+
+def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, metric: Metric, verbose=False):
     if verbose:
         print('\n-- Train Results --')
-    train_results = eval_model(model, train_dataloader, criterion, verbose=verbose)
+    train_results = eval_model(model, train_dataloader, criterion, metric)
     if verbose:
         print('\n-- Val Results --')
-    val_results = eval_model(model, val_dataloader, criterion, verbose=verbose)
+    val_results = eval_model(model, val_dataloader, criterion, metric)
     if verbose:
         print('\n-- Test Results --')
-    test_results = eval_model(model, test_dataloader, criterion, verbose=verbose)
+    test_results = eval_model(model, test_dataloader, criterion, metric)
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataloader, criterion, verbose=False):
+def eval_model(model, dataloader, criterion, metric: Metric):
     model.eval()
     with torch.no_grad():
         labels = list(range(model.n_classes))
@@ -79,41 +108,21 @@ def eval_model(model, dataloader, criterion, verbose=False):
             all_targets.append(targets.detach().cpu())
         all_targets = torch.cat(all_targets).long()
         all_probas = torch.cat(all_probas)
-        if model.n_classes > 1:
-            # Classification
-            _, all_preds = torch.max(F.softmax(all_probas, dim=1), dim=1)
-            acc = accuracy_score(all_targets, all_preds)
-            loss = criterion(all_probas, all_targets).item()
-            if verbose:
-                conf_mat = pd.DataFrame(
-                    confusion_matrix(all_targets, all_preds, labels=labels),
-                    index=pd.Index(labels, name='Actual'),
-                    columns=pd.Index(labels, name='Predicted')
-                )
-                print(' Acc: {:.3f}'.format(acc))
-                print('Loss: {:.3f}'.format(loss))
-                print(conf_mat)
-            return ClassificationMetrics(acc, loss)
-        else:
-            # Regression
-            loss = criterion(all_probas, all_targets).item()
-            if verbose:
-                print('Loss: {:.3f}'.format(loss))
-            return RegressionMetrics(loss)
+        return metric.calculate_metric(all_probas, all_targets, criterion, labels)
 
 
-def output_results(results: List[Tuple[Metrics, Metrics, Metrics]]):
+def output_results(results: List[Tuple[Metric, Metric, Metric]]):
     results_type = type(results[0][0])
-    if results_type == ClassificationMetrics:
+    if results_type == ClassificationMetric:
         output_classification_results(results)
-    elif results_type == RegressionMetrics:
+    elif results_type == RegressionMetric:
         output_regression_results(results)
     else:
         raise NotImplementedError('No results output for metrics {:}'.format(results_type))
 
 
-def output_classification_results(results: List[Tuple[ClassificationMetrics, ClassificationMetrics,
-                                                      ClassificationMetrics]]):
+def output_classification_results(results: List[Tuple[ClassificationMetric, ClassificationMetric,
+                                                      ClassificationMetric]]):
     raw_results = []
     for (train_results, val_results, test_results) in results:
         raw_results.append([train_results.accuracy, train_results.loss,
@@ -138,7 +147,7 @@ def output_classification_results(results: List[Tuple[ClassificationMetrics, Cla
     print('Done!')
 
 
-def output_regression_results(results: List[Tuple[RegressionMetrics, RegressionMetrics, RegressionMetrics]]):
+def output_regression_results(results: List[Tuple[RegressionMetric, RegressionMetric, RegressionMetric]]):
     raw_results = []
     for (train_results, val_results, test_results) in results:
         raw_results.append([train_results.loss, val_results.loss, test_results.loss])
