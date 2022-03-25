@@ -223,7 +223,7 @@ class Trainer(ABC):
 
         return best_model, train_results, val_results, test_results, early_stopped
 
-    def train_multiple(self, num_repeats=10, seed=5):
+    def train_multiple(self, n_repeats=10, seed=5):
         print('Training model with repeats')
         np.random.seed(seed=seed)
 
@@ -233,8 +233,8 @@ class Trainer(ABC):
 
         # Train multiple models
         results = []
-        for i in range(num_repeats):
-            print('Repeat {:d}/{:d}'.format(i + 1, num_repeats))
+        for i in range(n_repeats):
+            print('Repeat {:d}/{:d}'.format(i + 1, n_repeats))
             repeat_seed = np.random.randint(low=1, high=1000)
             print('Seed: {:d}'.format(repeat_seed))
             train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(repeat_seed, batch_size=1)
