@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset, FOURMNIST_N_CLASSES
+from pytorch_mil.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
@@ -10,11 +10,7 @@ def get_trainer_clzs():
 
 class FourMnistTrainer(ClassificationTrainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, "four_mnist", FOURMNIST_N_CLASSES, model_clz, model_params, train_params)
-
-    def load_datasets(self, seed=None):
-        return FourMnistBagsDataset.create_datasets(random_state=seed)
+    dataset_clz = FourMnistBagsDataset
 
     def get_default_train_params(self):
         return {

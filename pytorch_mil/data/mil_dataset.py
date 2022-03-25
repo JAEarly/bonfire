@@ -9,12 +9,35 @@ from torch.utils.data import Dataset
 # TODO Add abstract method to compute the mean.
 class MilDataset(Dataset, ABC):
 
-    def __init__(self, name, bags, targets, instance_targets):
+    def __init__(self, bags, targets, instance_targets):
         super(Dataset, self).__init__()
-        self.name = name
         self.bags = bags
         self.targets = torch.as_tensor(targets).float()
         self.instance_targets = instance_targets
+
+    @classmethod
+    @property
+    @abstractmethod
+    def name(cls):
+        pass
+
+    @classmethod
+    @property
+    @abstractmethod
+    def d_in(cls):
+        pass
+
+    @classmethod
+    @property
+    @abstractmethod
+    def n_expected_dims(cls):
+        pass
+
+    @classmethod
+    @property
+    @abstractmethod
+    def n_classes(cls):
+        pass
 
     @classmethod
     @abstractmethod

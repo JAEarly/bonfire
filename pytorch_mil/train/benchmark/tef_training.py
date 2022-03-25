@@ -1,21 +1,14 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.tef.tef_dataset import TefDataset, TEF_N_CLASSES
+from pytorch_mil.data.benchmark.tef.tef_dataset import TigerDataset, ElephantDataset, FoxDataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
-    return [TefNetTrainer, TefGNNTrainer]
+    return [TigerNetTrainer, TigerGNNTrainer, ElephantNetTrainer, ElephantGNNTrainer, FoxNetTrainer, FoxGNNTrainer]
 
 
 class TefTrainer(ClassificationTrainer, ABC):
-
-    def __init__(self, device, train_params, model_clz, dataset_name, model_params=None):
-        super().__init__(device, dataset_name, TEF_N_CLASSES, model_clz, model_params, train_params)
-        self.dataset_name = dataset_name
-
-    def load_datasets(self, seed=None):
-        return TefDataset.create_datasets(self.dataset_name, random_state=seed)
 
     def get_default_train_params(self):
         return {
@@ -26,9 +19,37 @@ class TefTrainer(ClassificationTrainer, ABC):
         }
 
 
-class TefNetTrainer(NetTrainerMixin, TefTrainer):
+class TigerTrainer(TefTrainer, ABC):
+    dataset_clz = TigerDataset
+
+
+class ElephantTrainer(TefTrainer, ABC):
+    dataset_clz = ElephantDataset
+
+
+class FoxTrainer(TefTrainer, ABC):
+    dataset_clz = FoxDataset
+
+
+class TigerNetTrainer(NetTrainerMixin, TigerTrainer):
     pass
 
 
-class TefGNNTrainer(GNNTrainerMixin, TefTrainer):
+class TigerGNNTrainer(GNNTrainerMixin, TigerTrainer):
+    pass
+
+
+class ElephantNetTrainer(NetTrainerMixin, ElephantTrainer):
+    pass
+
+
+class ElephantGNNTrainer(GNNTrainerMixin, ElephantTrainer):
+    pass
+
+
+class FoxNetTrainer(NetTrainerMixin, FoxTrainer):
+    pass
+
+
+class FoxGNNTrainer(GNNTrainerMixin, FoxTrainer):
     pass

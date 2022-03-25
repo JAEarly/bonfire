@@ -7,12 +7,6 @@ from torchvision.datasets import MNIST
 
 from pytorch_mil.data.mil_dataset import MilDataset
 
-SINGLEDIGITMNIST_N_CLASSES = 2
-FOURMNIST_N_CLASSES = 4
-COUNTMNIST_N_CLASSES = 1
-MNIST_N_EXPECTED_DIMS = 4  # i * c * h * w
-MNIST_FV_SIZE = 800
-
 
 def load_mnist(train):
     transform = transforms.Compose([
@@ -61,7 +55,13 @@ def show_instance(instance):
     plt.show()
 
 
+# TODO these should all inherit from an abstract MNISTMilDataset base class
 class SingleDigitMnistBagsDataset(MilDataset):
+
+    name = 'SingleDigitMNIST'
+    d_in = 800
+    n_expected_dims = 4  # i x c x h x w
+    n_classes = 2
 
     @classmethod
     def create_datasets(cls, mean_bag_size=30, var_bag_size=2, num_train_bags=2500, num_test_bags=1000,
@@ -100,7 +100,7 @@ class SingleDigitMnistBagsDataset(MilDataset):
         clz_discrim_probas = [1.0, discrim_prob]
         bags, targets, instance_targets = cls._create_bags(clz_dists, clz_weights, clz_discrim_probas,
                                                            mean_bag_size, var_bag_size, num_bags)
-        return cls("SingleMNISTBags", bags, targets, instance_targets)
+        return cls(bags, targets, instance_targets)
 
     @classmethod
     def _create_bags(cls, clz_dists, clz_weights, clz_discrim_probas, mean_bag_size, var_bag_size, num_bags):
@@ -160,6 +160,11 @@ class SingleDigitMnistBagsDataset(MilDataset):
 
 class FourMnistBagsDataset(MilDataset):
 
+    name = 'FourMnistBags'
+    d_in = 800
+    n_expected_dims = 4  # i x c x h x w
+    n_classes = 4
+
     @classmethod
     def create_datasets(cls, mean_bag_size=30, var_bag_size=2, num_train_bags=2500, num_test_bags=1000,
                         random_state=None):
@@ -209,7 +214,7 @@ class FourMnistBagsDataset(MilDataset):
         clz_discrim_probas = [1.0] + [discrim_prob] * 3
         bags, targets, instance_targets = cls._create_bags(clz_dists, clz_weights, clz_discrim_probas,
                                                            mean_bag_size, var_bag_size, num_bags)
-        return cls("FourMNISTBags", bags, targets, instance_targets)
+        return cls(bags, targets, instance_targets)
 
     @classmethod
     def _create_bags(cls, clz_dists, clz_weights, clz_discrim_probas, mean_bag_size, var_bag_size, num_bags):
@@ -273,6 +278,11 @@ class FourMnistBagsDataset(MilDataset):
 
 class CountMnistBagsDataset(MilDataset):
 
+    name = 'CountMnistBags'
+    d_in = 800
+    n_expected_dims = 4  # i x c x h x w
+    n_classes = 1
+
     @classmethod
     def create_datasets(cls, mean_bag_size=15, var_bag_size=1, num_train_bags=2500, num_test_bags=1000,
                         random_state=None):
@@ -307,7 +317,7 @@ class CountMnistBagsDataset(MilDataset):
         bags, targets, instance_targets = cls._create_bags(zero_to_seven_dist, eight_dist, nine_dist, discrim_prob,
                                                            mean_bag_size, var_bag_size, num_bags)
         # Create dataset
-        return cls("CountMNISTBags", bags, targets, instance_targets)
+        return cls(bags, targets, instance_targets)
 
     @classmethod
     def _create_bags(cls, non_discrim_dist, negative_discrim_dst, positive_discrim_dist, discrim_proba,

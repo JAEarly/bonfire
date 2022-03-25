@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.crc.crc_dataset import CrcDataset, CRC_N_CLASSES
+from pytorch_mil.data.benchmark.crc.crc_dataset import CrcDataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
@@ -10,11 +10,7 @@ def get_trainer_clzs():
 
 class CrcTrainer(ClassificationTrainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, "crc", CRC_N_CLASSES, model_clz, model_params, train_params)
-
-    def load_datasets(self, seed=None):
-        return CrcDataset.create_datasets(random_state=seed)
+    dataset_clz = CrcDataset
 
     def get_default_train_params(self):
         return {

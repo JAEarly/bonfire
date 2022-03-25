@@ -17,10 +17,6 @@ orig_path = 'data/CRC/orig'
 raw_path = 'data/CRC/raw'
 csv_path = 'data/CRC/crc_classes.csv'
 
-CRC_N_CLASSES = 2
-CRC_FV_SIZE = 1200
-CRC_N_EXPECTED_DIMS = 4  # i x c x h x w
-
 
 class Rotate90:
 
@@ -41,8 +37,13 @@ augmentation_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
 
 class CrcDataset(MilDataset):
 
+    name = 'crc'
+    d_in = 1200
+    n_expected_dims = 4  # i x c x h x w
+    n_classes = 2
+
     def __init__(self, bags, targets, ids, transform, instance_labels):
-        super().__init__("CRC", bags, targets, instance_labels)
+        super().__init__(bags, targets, instance_labels)
         self.transform = transform
         self.ids = ids
 

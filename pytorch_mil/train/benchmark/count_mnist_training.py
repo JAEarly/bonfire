@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset, COUNTMNIST_N_CLASSES
+from pytorch_mil.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
 from pytorch_mil.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
@@ -10,11 +10,7 @@ def get_trainer_clzs():
 
 class CountMnistTrainer(MinimiseRegressionTrainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, "count_mnist", COUNTMNIST_N_CLASSES, model_clz, model_params, train_params)
-
-    def load_datasets(self, seed=None):
-        return CountMnistBagsDataset.create_datasets(random_state=seed)
+    dataset_clz = CountMnistBagsDataset
 
     def get_default_train_params(self):
         return {

@@ -4,24 +4,29 @@ import torch
 from sklearn.model_selection import train_test_split
 
 from pytorch_mil.data.mil_dataset import MilDataset
-
-MUSK1_FILE_PATH = "./data/MUSK/clean1.data"
-MUSK2_FILE_PATH = "./data/MUSK/clean2.data"
-
-MUSK_N_CLASSES = 2
-MUSK_N_EXPECTED_DIMS = 2  # i * f
-MUSK_D_IN = 166
+from abc import ABC, abstractmethod
 
 
-class MuskDataset(MilDataset):
+class MuskDataset(MilDataset, ABC):
+
+    d_in = 166
+    n_expected_dims = 2  # i * f
+    n_classes = 2
 
     def __init__(self, bag_names, bags, targets):
-        super().__init__("Musk", bags, targets, None)
+        super().__init__(bags, targets, None)
         self.bag_names = bag_names
 
+    # TODO do this as a mixin? Tef datasets are also using csv
     @classmethod
-    def create_datasets(cls, musk_two=False, random_state=12):
-        parsed_data = parse_data(musk_two)
+    @property
+    @abstractmethod
+    def csv_path(cls):
+        pass
+
+    @classmethod
+    def create_datasets(cls, random_state=12):
+        parsed_data = parse_data(cls.csv_path)
         bag_names, bags, targets = parsed_data
 
         bags = normalise(bags)
@@ -43,11 +48,23 @@ class MuskDataset(MilDataset):
 
         return train_dataset, val_dataset, test_dataset
 
-def parse_data(musk_two):
-    path = MUSK2_FILE_PATH if musk_two else MUSK1_FILE_PATH
+
+class Musk1Dataset(MuskDataset):
+
+    name = "Musk1"
+    csv_path = "./data/MUSK/clean1.data"
+
+
+class Musk2Dataset(MuskDataset):
+
+    name = "Musk2"
+    csv_path = "./data/MUSK/clean2.data"
+
+
+def parse_data(csv_path):
     bag_data = {}
     bag_targets = {}
-    with open(path, 'r') as f:
+    with open(csv_path, 'r') as f:
         reader = csv.reader(f)
         for line in reader:
             molecule_name, instance_vector, instance_target = parse_line(line)

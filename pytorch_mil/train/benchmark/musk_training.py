@@ -1,22 +1,14 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.musk.musk_dataset import MuskDataset, MUSK_N_CLASSES
+from pytorch_mil.data.benchmark.musk.musk_dataset import Musk1Dataset, Musk2Dataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
-    return [MuskNetTrainer, MuskGNNTrainer]
+    return [Musk1NetTrainer, Musk1GNNTrainer, Musk2NetTrainer, Musk2GNNTrainer]
 
 
 class MuskTrainer(ClassificationTrainer, ABC):
-
-    def __init__(self, device, train_params, model_clz, model_params=None, musk_two=False):
-        dataset_name = "musk2" if musk_two else "musk1"
-        super().__init__(device, dataset_name, MUSK_N_CLASSES, model_clz, model_params, train_params)
-        self.musk_two = musk_two
-
-    def load_datasets(self, seed=None):
-        return MuskDataset.create_datasets(musk_two=self.musk_two, random_state=seed)
 
     def get_default_train_params(self):
         return {
@@ -27,9 +19,25 @@ class MuskTrainer(ClassificationTrainer, ABC):
         }
 
 
-class MuskNetTrainer(NetTrainerMixin, MuskTrainer):
+class Musk1Trainer(MuskTrainer, ABC):
+    dataset_clz = Musk1Dataset
+
+
+class Musk2Trainer(MuskTrainer, ABC):
+    dataset_clz = Musk2Dataset
+
+
+class Musk1NetTrainer(NetTrainerMixin, Musk1Trainer):
     pass
 
 
-class MuskGNNTrainer(GNNTrainerMixin, MuskTrainer):
+class Musk1GNNTrainer(GNNTrainerMixin, Musk1Trainer):
+    pass
+
+
+class Musk2NetTrainer(NetTrainerMixin, Musk2Trainer):
+    pass
+
+
+class Musk2GNNTrainer(GNNTrainerMixin, Musk2Trainer):
     pass

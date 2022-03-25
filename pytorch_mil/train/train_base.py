@@ -39,10 +39,8 @@ class Trainer(ABC):
 
     metric_clz = NotImplemented
 
-    def __init__(self, device, dataset_name, n_classes, model_clz, model_params=None, train_params_override=None):
+    def __init__(self, device, model_clz, model_params=None, train_params_override=None):
         self.device = device
-        self.dataset_name = dataset_name
-        self.n_classes = n_classes
         self.model_clz = model_clz
         self.model_params = model_params
         self.train_params = self.get_default_train_params()
@@ -54,8 +52,10 @@ class Trainer(ABC):
         if cls.metric_clz is NotImplemented and not inspect.isabstract(cls):
             raise NotImplementedError('No metric_type defined for tuner {:}.'.format(cls))
 
+    @classmethod
+    @property
     @abstractmethod
-    def load_datasets(self, seed=None):
+    def dataset_clz(cls):
         pass
 
     @abstractmethod
@@ -73,6 +73,9 @@ class Trainer(ABC):
     @abstractmethod
     def plot_training(self, train_metrics, val_metrics):
         pass
+
+    def load_datasets(self, seed=None):
+        return self.dataset_clz.create_datasets(random_state=seed)
 
     def create_dataloader(self, dataset, batch_size):
         raise NotImplementedError("Base trainer class does not provide a create_dataloader implementation. "
@@ -213,7 +216,7 @@ class Trainer(ABC):
                                                                          self.metric_clz, verbose=verbose)
 
         if save_model:
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name)
+            path, save_dir, _ = get_default_save_path(self.dataset_clz.name, self.model_name)
             print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
@@ -243,7 +246,7 @@ class Trainer(ABC):
             results.append(final_results)
 
             # Save model
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name, repeat=i)
+            path, save_dir, _ = get_default_save_path(self.dataset_clz.name, self.model_name, repeat=i)
             print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)

@@ -84,10 +84,10 @@ class RegressionMetric(Metric, ABC):
     def key_metric(self):
         return self.loss
 
-    @staticmethod
-    def calculate_metric(probas, targets, criterion, labels):
+    @classmethod
+    def calculate_metric(cls, probas, targets, criterion, labels):
         loss = criterion(probas, targets).item()
-        return RegressionMetric(loss)
+        return cls(loss)
 
     def short_string_repr(self):
         return "{{Loss: {:.3f}}}".format(self.loss)

@@ -4,25 +4,27 @@ import torch
 from sklearn.model_selection import train_test_split
 
 from pytorch_mil.data.mil_dataset import MilDataset
-
-TIGER_FILE_PATH = "./data/TEF/tiger.svm"
-ELEPHANT_FILE_PATH = "./data/TEF/elephant.svm"
-FOX_FILE_PATH = "./data/TEF/fox.svm"
-
-TEF_N_CLASSES = 2
-TEF_N_EXPECTED_DIMS = 2  # i * f
-TEF_D_IN = 230
+from abc import ABC, abstractmethod
 
 
-class TefDataset(MilDataset):
+class TefDataset(MilDataset, ABC):
 
-    def __init__(self, dataset_name, bags, targets):
-        super().__init__(dataset_name, bags, targets, None)
-        self.dataset_name = dataset_name
+    d_in = 230
+    n_classes = 2
+    n_expected_dims = 2  # i * f
+
+    def __init__(self, bags, targets):
+        super().__init__(bags, targets, None)
 
     @classmethod
-    def create_datasets(cls, dataset_name="tiger", random_state=12):
-        parsed_data = parse_data(dataset_name)
+    @property
+    @abstractmethod
+    def csv_path(cls):
+        pass
+
+    @classmethod
+    def create_datasets(cls, random_state=12):
+        parsed_data = parse_data(cls.csv_path)
         bags, targets = parsed_data
 
         bags = normalise(bags)
@@ -34,28 +36,35 @@ class TefDataset(MilDataset):
                                   random_state=random_state)
         val_bags, test_bags, val_targets, test_targets = splits
 
-        train_dataset = TefDataset(dataset_name, train_bags, train_targets)
-        val_dataset = TefDataset(dataset_name, val_bags, val_targets)
-        test_dataset = TefDataset(dataset_name, test_bags, test_targets)
+        train_dataset = TefDataset(train_bags, train_targets)
+        val_dataset = TefDataset(val_bags, val_targets)
+        test_dataset = TefDataset(test_bags, test_targets)
 
         return train_dataset, val_dataset, test_dataset
 
 
-def get_path_from_dataset_name(dataset_name):
-    if dataset_name == 'tiger':
-        return TIGER_FILE_PATH
-    if dataset_name == 'elephant':
-        return ELEPHANT_FILE_PATH
-    if dataset_name == 'fox':
-        return FOX_FILE_PATH
-    raise ValueError('No TEF dataset for name {:s}'.format(dataset_name))
+class TigerDataset(TefDataset):
+
+    name = "Tiger"
+    csv_path = "./data/TEF/tiger.svm"
 
 
-def parse_data(dataset_name):
-    path = get_path_from_dataset_name(dataset_name)
+class ElephantDataset(TefDataset):
+
+    name = "Elephant"
+    csv_path = "./data/TEF/elephant.svm"
+
+
+class FoxDataset(TefDataset):
+
+    name = "Fox"
+    csv_path = "./data/TEF/fox.svm"
+
+
+def parse_data(csv_path):
     bag_data = {}
     bag_targets = {}
-    with open(path, 'r') as f:
+    with open(csv_path, 'r') as f:
         reader = csv.reader(f, delimiter=' ')
         next(reader)
         for line in reader:

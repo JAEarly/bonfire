@@ -1,6 +1,6 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.sival.sival_dataset import SIVAL_N_CLASSES, SivalDataset
+from pytorch_mil.data.benchmark.sival.sival_dataset import SivalDataset
 from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
@@ -10,11 +10,7 @@ def get_trainer_clzs():
 
 class SivalTrainer(ClassificationTrainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, "sival", SIVAL_N_CLASSES, model_clz, model_params, train_params)
-
-    def load_datasets(self, seed=None):
-        return SivalDataset.create_datasets(random_state=seed)
+    dataset_clz = SivalDataset
 
     def get_default_train_params(self):
         return {
