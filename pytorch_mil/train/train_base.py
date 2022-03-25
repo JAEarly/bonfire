@@ -223,9 +223,9 @@ class Trainer(ABC):
 
         return best_model, train_results, val_results, test_results, early_stopped
 
-    def train_multiple(self, n_repeats=10, seed=5):
-        print('Training model with repeats')
-        np.random.seed(seed=seed)
+    def train_multiple(self, n_repeats=10, seeds=None):
+        if seeds is not None and len(seeds) != n_repeats:
+            print('Provided incorrect number of seeds: {:d} given but expected {:d}'.format(len(seeds), n_repeats))
 
         model_save_dir = '{:s}/{:s}'.format(self.save_dir, self.get_model_name())
         if not os.path.exists(model_save_dir):
@@ -235,7 +235,7 @@ class Trainer(ABC):
         results = []
         for i in range(n_repeats):
             print('Repeat {:d}/{:d}'.format(i + 1, n_repeats))
-            repeat_seed = np.random.randint(low=1, high=1000)
+            repeat_seed = np.random.randint(low=1, high=1000) if seeds is None else seeds[i]
             print('Seed: {:d}'.format(repeat_seed))
             train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(repeat_seed, batch_size=1)
             model = self.create_model()
