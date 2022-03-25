@@ -11,8 +11,7 @@ def get_trainer_clzs():
 class TefTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, dataset_name, model_params=None):
-        super().__init__(device, TEF_N_CLASSES, model_clz, "models/{:s}".format(dataset_name), model_params,
-                         train_params)
+        super().__init__(device, dataset_name, TEF_N_CLASSES, model_clz, model_params, train_params)
         self.dataset_name = dataset_name
 
     def load_datasets(self, seed=None):

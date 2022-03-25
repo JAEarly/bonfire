@@ -155,11 +155,11 @@ def output_classification_results(results: List[Tuple[ClassificationMetric, Clas
         raw_results.append([train_results.accuracy, train_results.loss,
                             val_results.accuracy, val_results.loss,
                             test_results.accuracy, test_results.loss])
-    results = np.asarray(results)
+    raw_results = np.asarray(raw_results)
     rows = [['Train Accuracy', 'Train Loss', 'Val Accuracy', 'Val Loss', 'Test Accuracy', 'Test Loss']]
     results_row = []
     for i in range(6):
-        values = results[:, i]
+        values = raw_results[:, i]
         mean = np.mean(values)
         sem = np.std(values) / np.sqrt(len(values))
         results_row.append('{:.4f} +- {:.4f}'.format(mean, sem))

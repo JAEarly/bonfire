@@ -11,8 +11,8 @@ def get_trainer_clzs():
 class MuskTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None, musk_two=False):
-        save_dir = "models/musk2" if musk_two else "models/musk1"
-        super().__init__(device, MUSK_N_CLASSES, model_clz, save_dir, model_params, train_params)
+        dataset_name = "musk2" if musk_two else "musk1"
+        super().__init__(device, dataset_name, MUSK_N_CLASSES, model_clz, model_params, train_params)
         self.musk_two = musk_two
 
     def load_datasets(self, seed=None):

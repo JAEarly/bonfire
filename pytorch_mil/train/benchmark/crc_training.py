@@ -11,7 +11,7 @@ def get_trainer_clzs():
 class CrcTrainer(ClassificationTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, CRC_N_CLASSES, model_clz, "models/crc", model_params, train_params)
+        super().__init__(device, "crc", CRC_N_CLASSES, model_clz, model_params, train_params)
 
     def load_datasets(self, seed=None):
         return CrcDataset.create_datasets(random_state=seed)

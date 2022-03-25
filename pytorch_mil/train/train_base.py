@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from pytorch_mil.data.mil_graph_dataset import GraphDataloader
 from pytorch_mil.model import models
-from pytorch_mil.train import metrics
+from pytorch_mil.train import metrics, get_default_save_path
 from pytorch_mil.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
 
 
@@ -39,10 +39,10 @@ class Trainer(ABC):
 
     metric_clz = NotImplemented
 
-    def __init__(self, device, n_classes, model_clz, save_dir, model_params=None, train_params_override=None):
+    def __init__(self, device, dataset_name, n_classes, model_clz, model_params=None, train_params_override=None):
         self.device = device
+        self.dataset_name = dataset_name
         self.n_classes = n_classes
-        self.save_dir = save_dir
         self.model_clz = model_clz
         self.model_params = model_params
         self.train_params = self.get_default_train_params()
@@ -66,6 +66,10 @@ class Trainer(ABC):
     def get_criterion(self):
         pass
 
+    @property
+    def model_name(self):
+        return self.model_clz.__name__
+
     @abstractmethod
     def plot_training(self, train_metrics, val_metrics):
         pass
@@ -74,7 +78,7 @@ class Trainer(ABC):
         raise NotImplementedError("Base trainer class does not provide a create_dataloader implementation. "
                                   "You need to use a mixin: NetTrainerMixin, GNNTrainerMixin")
 
-    def create_dataloaders(self, seed, batch_size):
+    def create_dataloaders(self, seed, batch_size=1):
         train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
         train_dataloader = self.create_dataloader(train_dataset, batch_size)
         val_dataloader = self.create_dataloader(val_dataset, batch_size)
@@ -85,9 +89,6 @@ class Trainer(ABC):
         if self.model_params is not None:
             return self.model_clz(self.device, **self.model_params)
         return self.model_clz(self.device)
-
-    def get_model_name(self):
-        return self.model_clz.__name__
 
     def create_optimizer(self, model):
         lr = self.get_train_param('lr')
@@ -212,11 +213,11 @@ class Trainer(ABC):
                                                                          self.metric_clz, verbose=verbose)
 
         if save_model:
-            save_path = '{:s}/{:s}.pkl'.format(self.save_dir, self.get_model_name())
-            print('Saving model to {:s}'.format(save_path))
-            if not os.path.exists(self.save_dir):
-                os.makedirs(self.save_dir)
-            torch.save(best_model.state_dict(), save_path)
+            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name)
+            print('Saving model to {:s}'.format(path))
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            torch.save(best_model.state_dict(), path)
 
         if show_plot:
             self.plot_training(train_metrics, val_metrics)
@@ -226,10 +227,6 @@ class Trainer(ABC):
     def train_multiple(self, n_repeats=10, seeds=None):
         if seeds is not None and len(seeds) != n_repeats:
             print('Provided incorrect number of seeds: {:d} given but expected {:d}'.format(len(seeds), n_repeats))
-
-        model_save_dir = '{:s}/{:s}'.format(self.save_dir, self.get_model_name())
-        if not os.path.exists(model_save_dir):
-            os.makedirs(model_save_dir)
 
         # Train multiple models
         results = []
@@ -244,7 +241,14 @@ class Trainer(ABC):
             final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
                                                   self.get_criterion(), self.metric_clz, verbose=False)
             results.append(final_results)
-            torch.save(best_model.state_dict(), '{:s}/{:s}_{:d}.pkl'.format(model_save_dir, self.get_model_name(), i))
+
+            # Save model
+            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name, repeat=i)
+            print('Saving model to {:s}'.format(path))
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            torch.save(best_model.state_dict(), path)
+
         metrics.output_results(results)
 
 

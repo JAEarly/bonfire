@@ -11,7 +11,7 @@ def get_trainer_clzs():
 class CountMnistTrainer(MinimiseRegressionTrainer, ABC):
 
     def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, COUNTMNIST_N_CLASSES, model_clz, "models/count_mnist", model_params, train_params)
+        super().__init__(device, "count_mnist", COUNTMNIST_N_CLASSES, model_clz, model_params, train_params)
 
     def load_datasets(self, seed=None):
         return CountMnistBagsDataset.create_datasets(random_state=seed)

@@ -1,10 +1,9 @@
 import torch
 
-from pytorch_mil.data import load_datasets
-from pytorch_mil.model import load_model
+from pytorch_mil.model.benchmark import get_model_clz
+from pytorch_mil.train import DEFAULT_SEEDS, get_default_save_path
+from pytorch_mil.train.benchmark import get_trainer_clz
 from pytorch_mil.train.metrics import eval_complete, output_results
-
-SEEDS = [868, 207, 702, 999, 119, 401, 74, 9, 741, 744]
 
 
 def run(dataset_name, model_names):
@@ -20,17 +19,21 @@ def run_single(device, dataset_name, model_name):
     output_results(results)
 
 
-def get_results(device, dataset_name, model_name, criterion):
+def get_results(device, dataset_name, model_name):
+    model_clz = get_model_clz(dataset_name, model_name)
+    trainer_clz = get_trainer_clz(dataset_name, model_clz)
+    trainer = trainer_clz(device, {}, model_clz)
+
     results = []
-    for i in range(len(SEEDS)):
-        print('Model {:d}/{:d}'.format(i + 1, len(SEEDS)))
-        train_dataloader, val_dataloader, test_dataloader = load_datasets(dataset_name, seed=SEEDS[i])
-        model = load_model(device, model_name, dataset_name, repeat=i)
-        final_results = eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, verbose=False)
-        train_results, val_results, test_results = final_results
-        results.append([train_results[0], train_results[1],
-                        val_results[0], val_results[1],
-                        test_results[0], test_results[1]])
+    for i in range(len(DEFAULT_SEEDS)):
+        seed = DEFAULT_SEEDS[i]
+        print('Model {:d}/{:d}; Seed {:d}'.format(i + 1, len(DEFAULT_SEEDS), seed))
+        train_dataloader, val_dataloader, test_dataloader = trainer.create_dataloaders(seed=seed)
+        model_path, _, _ = get_default_save_path(dataset_name, model_name, repeat=i)
+        model = model_clz.load_model(device, model_path)
+        repeat_results = eval_complete(model, train_dataloader, val_dataloader, test_dataloader, trainer.get_criterion(),
+                                       trainer.metric_clz, verbose=False)
+        results.append(repeat_results)
     return results
 
 
