@@ -35,7 +35,12 @@ class MilDataset(Dataset, ABC):
 
     @classmethod
     @abstractmethod
-    def create_datasets(cls, random_state=12):
+    def create_datasets(cls, seed=12):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def create_complete_dataset(cls):
         pass
 
     def summarise(self, out_clz_dist=True):
@@ -53,12 +58,6 @@ class MilDataset(Dataset, ABC):
         print('  Min: {:d}'.format(min(bag_sizes)))
         print('  Avg: {:.1f}'.format(np.mean(bag_sizes)))
         print('  Max: {:d}'.format(max(bag_sizes)))
-
-    def get_bag_verbose(self, index):
-        bag = self.bags[index]
-        target = self.targets[index]
-        instance_targets = self.instance_targets[index] if self.instance_targets is not None else None
-        return bag, target, instance_targets
 
     def get_clz_weights(self):
         """
@@ -110,4 +109,5 @@ class MilDataset(Dataset, ABC):
     def __getitem__(self, index):
         bag = self.bags[index]
         target = self.targets[index]
-        return bag, target
+        instance_targets = self.instance_targets[index] if self.instance_targets is not None else None
+        return bag, target, instance_targets

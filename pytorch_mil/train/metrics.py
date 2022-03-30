@@ -56,12 +56,12 @@ class ClassificationMetric(Metric):
         return self.accuracy
 
     @staticmethod
-    def calculate_metric(probas, targets, criterion, labels):
-        _, preds = torch.max(F.softmax(probas, dim=1), dim=1)
-        acc = accuracy_score(targets, preds)
-        loss = criterion(probas, targets).item()
+    def calculate_metric(preds, targets, criterion, labels):
+        _, probas = torch.max(F.softmax(preds, dim=1), dim=1)
+        acc = accuracy_score(targets.long(), probas)
+        loss = criterion(preds, targets).item()
         conf_mat = pd.DataFrame(
-            confusion_matrix(targets, preds, labels=labels),
+            confusion_matrix(targets.long(), probas, labels=labels),
             index=pd.Index(labels, name='Actual'),
             columns=pd.Index(labels, name='Predicted')
         )
@@ -85,8 +85,8 @@ class RegressionMetric(Metric, ABC):
         return self.loss
 
     @classmethod
-    def calculate_metric(cls, probas, targets, criterion, labels):
-        loss = criterion(probas, targets).item()
+    def calculate_metric(cls, preds, targets, criterion, labels):
+        loss = criterion(preds, targets).item()
         return cls(loss)
 
     def short_string_repr(self):
@@ -107,35 +107,68 @@ class MinimiseRegressionMetric(RegressionMetric):
 
 
 def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, metric: Metric, verbose=False):
-    train_results = eval_model(model, train_dataloader, criterion, metric)
+    train_results, _ = eval_model(model, train_dataloader, criterion, metric)
     if verbose:
         print('\n-- Train Results --')
         train_results.output()
-    val_results = eval_model(model, val_dataloader, criterion, metric)
+    val_results, _ = eval_model(model, val_dataloader, criterion, metric)
     if verbose:
         print('\n-- Val Results --')
         val_results.output()
-    test_results = eval_model(model, test_dataloader, criterion, metric)
+    test_results, _ = eval_model(model, test_dataloader, criterion, metric)
     if verbose:
         print('\n-- Test Results --')
         test_results.output()
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataloader, criterion, metric: Metric):
+def eval_model(model, dataloader, criterion, metric: Metric, calculate_instance=False):
     model.eval()
     with torch.no_grad():
-        labels = list(range(model.n_classes))
-        all_probas = []
+        # Bag level preds and targets
+        all_preds = []
         all_targets = []
+        # Instance level preds and targets
+        all_instance_preds = []
+        all_instance_targets = []
+        # Iterator through dataset
         for data in dataloader:
-            bags, targets = data[0], data[1]
-            bag_preds = model(bags)
-            all_probas.append(bag_preds.detach().cpu())
-            all_targets.append(targets.detach().cpu())
-        all_targets = torch.cat(all_targets).long()
-        all_probas = torch.cat(all_probas)
-        return metric.calculate_metric(all_probas, all_targets, criterion, labels)
+            # Get data
+            bag, target, instance_targets = data[0], data[1], data[2]
+            # Check we can actually calculate instance performance if we're trying to
+            if calculate_instance and instance_targets is None:
+                print('Cannot calculate instance performance as dataset does not provide instance targets')
+                calculate_instance = False
+            # Get model outputs
+            bag_preds, instance_preds = model.forward_verbose(bag)
+            # TODO assuming dataloader is using a bag size of one in eval
+            bag_preds = bag_preds[0]
+            instance_preds = instance_preds[0]
+            # Add bag level info to aggregate lists
+            all_preds.append(bag_preds.detach().cpu())
+            all_targets.append(target.detach().cpu())
+            # Add instance level info to aggregate lists
+            if calculate_instance:
+                all_instance_preds.append(instance_preds.detach().cpu())
+                all_instance_targets.append(instance_targets.detach().cpu())
+
+        # Get the labels that we're actually trying to predict over
+        labels = list(range(model.n_classes))
+
+        # Aggregate bag info and calculate bag metric
+        all_preds = torch.cat(all_preds)
+        all_targets = torch.cat(all_targets)
+        bag_metric = metric.calculate_metric(all_preds, all_targets, criterion, labels)
+
+        # Aggregate instance info and calculate instance metric if we're still doing so
+        instance_metric = None
+        if calculate_instance:
+            all_instance_preds = torch.cat(all_instance_preds, dim=1)
+            all_instance_targets = torch.cat(all_instance_targets, dim=1)
+            instance_metric = metric.calculate_metric(all_instance_preds, all_instance_targets, criterion, labels)
+
+        # Return both bag and instance metric (might be None)
+        return bag_metric, instance_metric
 
 
 def output_results(results: List[Tuple[Metric, Metric, Metric]]):

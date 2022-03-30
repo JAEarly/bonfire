@@ -269,7 +269,7 @@ class MiLstm(MultipleInstanceNN, ABC):
             if self.training and self.shuffle_instances:
                 instances = instances[torch.randperm(len(instances))]
             instance_embeddings = self.encoder(instances)
-            bag_embedding, bag_prediction, cumulative_bag_predictions = self.aggregator(instance_embeddings)
+            bag_prediction, cumulative_bag_predictions = self.aggregator(instance_embeddings)
             bag_predictions[i] = bag_prediction
             all_cumulative_bag_predictions.append(cumulative_bag_predictions)
 

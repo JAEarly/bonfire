@@ -97,6 +97,7 @@ def parse_line(line):
     return molecule_name, features, instance_target
 
 
+# TODO as method in abstract base class?
 def normalise(bags):
     all_instances = torch.cat(bags)
     dataset_mean = torch.mean(all_instances, dim=0)

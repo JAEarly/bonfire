@@ -79,8 +79,8 @@ class Trainer(ABC):
 
     def load_datasets(self, seed=None):
         if self.dataset_params is not None:
-            return self.dataset_clz.create_datasets(**self.dataset_params, random_state=seed)
-        return self.dataset_clz.create_datasets(random_state=seed)
+            return self.dataset_clz.create_datasets(**self.dataset_params, seed=seed)
+        return self.dataset_clz.create_datasets(seed=seed)
 
     def create_dataloader(self, dataset, batch_size):
         raise NotImplementedError("Base trainer class does not provide a create_dataloader implementation. "
@@ -137,8 +137,8 @@ class Trainer(ABC):
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_train_metrics = metrics.eval_model(model, train_dataloader, criterion, self.metric_clz)
-        epoch_val_metrics = metrics.eval_model(model, val_dataloader, criterion, self.metric_clz)
+        epoch_train_metrics, _ = metrics.eval_model(model, train_dataloader, criterion, self.metric_clz)
+        epoch_val_metrics, _ = metrics.eval_model(model, val_dataloader, criterion, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
@@ -274,7 +274,7 @@ class ClassificationTrainer(Trainer, ABC):
         val_accs = [m.accuracy for m in val_metrics]
         val_losses = [m.loss for m in val_metrics]
 
-        fig, axes = plt.subplots(nrows=1, ncols=2)
+        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(14, 5))
         axes[0].plot(x_range, train_accs, label='Train')
         axes[0].plot(x_range, val_accs, label='Validation')
         axes[0].set_xlim(0, len(x_range))
@@ -311,13 +311,14 @@ class MinimiseRegressionTrainer(Trainer, ABC):
         train_losses = [m.loss for m in train_metrics]
         val_losses = [m.loss for m in val_metrics]
 
-        fig, axes = plt.subplots(nrows=1, ncols=2)
-        axes[0].plot(x_range, train_losses, label='Train')
-        axes[0].plot(x_range, val_losses, label='Validation')
-        axes[0].set_xlim(0, len(x_range))
-        axes[0].set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('MSE Loss')
+        fig, axis = plt.subplots(nrows=1, ncols=1, figsize=(7, 5))
+        axis.plot(x_range, train_losses, label='Train')
+        axis.plot(x_range, val_losses, label='Validation')
+        axis.set_xlim(0, len(x_range))
+        axis.set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
+        axis.set_xlabel('Epoch')
+        axis.set_ylabel('MSE Loss')
+        axis.legend(loc='best')
         plt.show()
 
 
