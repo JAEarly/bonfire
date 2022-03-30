@@ -17,6 +17,8 @@ class Aggregator(nn.Module, ABC):
             return lambda x: torch.mean(x, dim=0)
         if agg_func_name == 'max':
             return lambda x: torch.max(x, dim=0)[0]
+        if agg_func_name == 'sum':
+            return lambda x: torch.sum(x, dim=0)[0]
         raise ValueError('Invalid aggregation function name for Instance Aggregator: {:s}'.format(agg_func_name))
 
 
@@ -74,7 +76,10 @@ class CountAggregator(Aggregator):
         return bag_prediction, instance_attributions
 
 
-class LstmAggregator(Aggregator):
+class LstmFinalOnlyAggregator(Aggregator):
+    """
+    An LSTM Aggregator that only makes the bag prediction based on the final hidden state.
+    """
 
     def __init__(self, d_in, d_hid, n_lstm_layers, bidirectional, dropout, ds_hid, n_classes):
         super().__init__()
@@ -84,20 +89,109 @@ class LstmAggregator(Aggregator):
                                                             dropout, raw_last=True)
 
     def forward(self, instance_embeddings):
-        # Pass through lstm block
-        #   Unsqueeze as lstm block expects a 3D input
+        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
         bag_embedding, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
-
         # Get bag prediction
         bag_prediction = self.embedding_classifier(bag_embedding)
-
         # Get cumulative instance predictions if not training
         cumulative_predictions = None
-        # if not self.training:
-        #     with torch.no_grad():
-        #         cumulative_predictions = self.embedding_classifier(cumulative_bag_embeddings)
+        if not self.training:
+            with torch.no_grad():
+                cumulative_predictions = self.embedding_classifier(cumulative_bag_embeddings)
 
-        return bag_embedding, bag_prediction, cumulative_predictions
+        return bag_prediction, cumulative_predictions
+
+    def flatten_parameters(self):
+        self.lstm_block.flatten_parameters()
+
+
+class LstmCumulativeAggregator(Aggregator):
+    """
+    An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states and then
+    performing some aggregation (e.g., mean, sum) over all the instance predictions.
+    Assumes forward direction only.
+    """
+
+    def __init__(self, d_in, d_hid, n_lstm_layers, dropout, ds_hid, n_classes, agg_func_name):
+        super().__init__()
+        self.lstm_block = mod.LstmBlock(d_in, d_hid, n_lstm_layers, False, dropout)
+        self.embedding_size = d_hid
+        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
+                                                            dropout, raw_last=True)
+        self.aggregation_func = self._parse_agg_method(agg_func_name)
+
+    def forward(self, instance_embeddings):
+        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
+        _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
+        # Get prediction for each instance
+        instance_predictions = self.embedding_classifier(cumulative_bag_embeddings).squeeze(2)
+        # Aggregate to bag prediction
+        bag_prediction = self.aggregation_func(instance_predictions)
+        return bag_prediction, instance_predictions
+
+    def flatten_parameters(self):
+        self.lstm_block.flatten_parameters()
+
+
+class LstmCumulativeWithInstanceAggregator(Aggregator):
+    """
+    An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states concatenated to
+    their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
+    Assumes forward direction only.
+    """
+
+    def __init__(self, d_in, d_hid, n_lstm_layers, dropout, ds_hid, n_classes, agg_func_name):
+        super().__init__()
+        self.lstm_block = mod.LstmBlock(d_in, d_hid, n_lstm_layers, False, dropout)
+        self.embedding_size = d_in + d_hid
+        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
+                                                            dropout, raw_last=True)
+        self.aggregation_func = self._parse_agg_method(agg_func_name)
+
+    def forward(self, instance_embeddings):
+        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
+        _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
+        # Concatenate the instance embeddings with the cumulative bag embeddings
+        concat_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze()), dim=1)
+        # Get prediction for each instance
+        instance_predictions = self.embedding_classifier(concat_reprs)
+        # Aggregate to bag prediction
+        bag_prediction = self.aggregation_func(instance_predictions)
+        return bag_prediction, instance_predictions
+
+    def flatten_parameters(self):
+        self.lstm_block.flatten_parameters()
+
+
+class LstmCumulativeWithInstanceSeparateEncodingAggregator(Aggregator):
+    """
+    An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states concatenated to
+    their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
+    Assumes forward direction only.
+    """
+
+    def __init__(self, d_lstm_in, d_fc_in, d_hid, n_lstm_layers, dropout, ds_hid, n_classes, agg_func_name):
+        super().__init__()
+        self.lstm_block = mod.LstmBlock(d_lstm_in, d_hid, n_lstm_layers, False, dropout)
+        self.embedding_size = d_fc_in + d_hid
+        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
+                                                            dropout, raw_last=True)
+        self.aggregation_func = self._parse_agg_method(agg_func_name)
+
+    def forward(self, lstm_instance_embeddings, fc_instance_embeddings):
+        """
+        :param lstm_instance_embeddings: Embeddings to be passed through the LSTM block
+        :param fc_instance_embeddings: Embeddings to be passed straight to the fully connected classifier
+        """
+        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
+        _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(lstm_instance_embeddings, 0))
+        # Concatenate the instance embeddings with the cumulative bag embeddings
+        concat_reprs = torch.cat((fc_instance_embeddings, cumulative_bag_embeddings.squeeze()), dim=1)
+        # Get prediction for each instance
+        instance_predictions = self.embedding_classifier(concat_reprs)
+        # Aggregate to bag prediction
+        bag_prediction = self.aggregation_func(instance_predictions)
+        return bag_prediction, instance_predictions
 
     def flatten_parameters(self):
         self.lstm_block.flatten_parameters()

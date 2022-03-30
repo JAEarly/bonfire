@@ -156,6 +156,7 @@ class LstmBlock(nn.Module):
             bag_repr = out[:, -1, :]
 
         bag_repr = self.dropout(bag_repr)
+        out = self.dropout(out)
         return bag_repr, out
 
     def flatten_parameters(self):
