@@ -9,11 +9,12 @@ from torch.utils.data import Dataset
 # TODO Add abstract method to compute the mean.
 class MilDataset(Dataset, ABC):
 
-    def __init__(self, bags, targets, instance_targets):
+    def __init__(self, bags, targets, instance_targets, bags_metadata):
         super(Dataset, self).__init__()
         self.bags = bags
         self.targets = torch.as_tensor(targets).float()
         self.instance_targets = instance_targets
+        self.bags_metadata = bags_metadata
 
     @classmethod
     @property

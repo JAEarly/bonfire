@@ -13,12 +13,18 @@ class Aggregator(nn.Module, ABC):
 
     @staticmethod
     def _parse_agg_method(agg_func_name):
+        # TODO ensure these are the correct shape
         if agg_func_name == 'mean':
-            return lambda x: torch.mean(x, dim=0)
+            raise NotImplementedError('Check shape!')
+            # return lambda x: torch.mean(x, dim=0)
         if agg_func_name == 'max':
-            return lambda x: torch.max(x, dim=0)[0]
+            raise NotImplementedError('Check shape!')
+            # return lambda x: torch.max(x, dim=0)[0]
         if agg_func_name == 'sum':
-            return lambda x: torch.sum(x, dim=0)[0]
+            def sum_agg(x):
+                assert len(x.shape) == 1   # n_instances
+                return torch.sum(x)
+            return sum_agg
         raise ValueError('Invalid aggregation function name for Instance Aggregator: {:s}'.format(agg_func_name))
 
 
@@ -31,7 +37,7 @@ class InstanceAggregator(Aggregator):
 
     def forward(self, instance_embeddings):
         instance_predictions = self.instance_classifier(instance_embeddings)
-        bag_prediction = self.aggregation_func(instance_predictions)
+        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
 
@@ -124,9 +130,9 @@ class LstmCumulativeAggregator(Aggregator):
         # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
         _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
         # Get prediction for each instance
-        instance_predictions = self.embedding_classifier(cumulative_bag_embeddings).squeeze(2)
+        instance_predictions = self.embedding_classifier(cumulative_bag_embeddings)
         # Aggregate to bag prediction
-        bag_prediction = self.aggregation_func(instance_predictions)
+        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
     def flatten_parameters(self):

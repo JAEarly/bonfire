@@ -106,69 +106,33 @@ class MinimiseRegressionMetric(RegressionMetric):
     optimise_direction = 'minimise'
 
 
-def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, criterion, metric: Metric, verbose=False):
-    train_results, _ = eval_model(model, train_dataloader, criterion, metric)
+def eval_complete(model, train_dataset, val_dataset, test_dataset, criterion, metric: Metric, verbose=False):
+    train_results = eval_model(model, train_dataset, criterion, metric)
     if verbose:
         print('\n-- Train Results --')
         train_results.output()
-    val_results, _ = eval_model(model, val_dataloader, criterion, metric)
+    val_results = eval_model(model, val_dataset, criterion, metric)
     if verbose:
         print('\n-- Val Results --')
         val_results.output()
-    test_results, _ = eval_model(model, test_dataloader, criterion, metric)
+    test_results= eval_model(model, test_dataset, criterion, metric)
     if verbose:
         print('\n-- Test Results --')
         test_results.output()
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataloader, criterion, metric: Metric, calculate_instance=False):
+def eval_model(model, dataset, criterion, metric: Metric):
     model.eval()
     with torch.no_grad():
-        # Bag level preds and targets
         all_preds = []
-        all_targets = []
-        # Instance level preds and targets
-        all_instance_preds = []
-        all_instance_targets = []
-        # Iterator through dataset
-        for data in dataloader:
-            # Get data
-            bag, target, instance_targets = data[0], data[1], data[2]
-            # Check we can actually calculate instance performance if we're trying to
-            if calculate_instance and instance_targets is None:
-                print('Cannot calculate instance performance as dataset does not provide instance targets')
-                calculate_instance = False
-            # Get model outputs
-            bag_preds, instance_preds = model.forward_verbose(bag)
-            # TODO assuming dataloader is using a bag size of one in eval
-            bag_preds = bag_preds[0]
-            instance_preds = instance_preds[0]
-            # Add bag level info to aggregate lists
-            all_preds.append(bag_preds.detach().cpu())
-            all_targets.append(target.detach().cpu())
-            # Add instance level info to aggregate lists
-            if calculate_instance:
-                all_instance_preds.append(instance_preds.detach().cpu())
-                all_instance_targets.append(instance_targets.detach().cpu())
-
-        # Get the labels that we're actually trying to predict over
+        for bag in dataset.bags:
+            bag_pred, _ = model.forward_verbose(bag)
+            all_preds.append(bag_pred.detach().cpu())
         labels = list(range(model.n_classes))
-
-        # Aggregate bag info and calculate bag metric
         all_preds = torch.cat(all_preds)
-        all_targets = torch.cat(all_targets)
-        bag_metric = metric.calculate_metric(all_preds, all_targets, criterion, labels)
-
-        # Aggregate instance info and calculate instance metric if we're still doing so
-        instance_metric = None
-        if calculate_instance:
-            all_instance_preds = torch.cat(all_instance_preds, dim=1)
-            all_instance_targets = torch.cat(all_instance_targets, dim=1)
-            instance_metric = metric.calculate_metric(all_instance_preds, all_instance_targets, criterion, labels)
-
-        # Return both bag and instance metric (might be None)
-        return bag_metric, instance_metric
+        bag_metric = metric.calculate_metric(all_preds, dataset.targets, criterion, labels)
+        return bag_metric
 
 
 def output_results(results: List[Tuple[Metric, Metric, Metric]]):

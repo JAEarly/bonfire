@@ -70,15 +70,16 @@ class MultipleInstanceNN(MultipleInstanceModel, ABC):
             raise ValueError('Invalid model input type {:}'.format(type(model_input)))
 
         # Actually pass the input through the model
-        bag_predictions, bag_instance_predictions = self._internal_forward(bags)
+        #  Note instance interpretations has a different meaning depending on the model
+        #  They can be, but are not always, instance predictions (e.g., attention).
+        bag_predictions, instance_interpretations = self._internal_forward(bags)
 
         # If given input was not batched, also un-batch the output
         if unbatched_bag:
-            return bag_predictions[0], bag_instance_predictions[0]
-        return bag_predictions, bag_instance_predictions
+            return bag_predictions[0], instance_interpretations[0]
+        return bag_predictions, instance_interpretations
 
 
-# TODO all these classes are ABC - should they be?
 class InstanceSpaceNN(MultipleInstanceNN, ABC):
 
     def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
@@ -87,7 +88,8 @@ class InstanceSpaceNN(MultipleInstanceNN, ABC):
         self.aggregator = aggregator
 
     def _internal_forward(self, bags):
-        bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
+        batch_size = len(bags)
+        bag_predictions = torch.zeros((batch_size, self.n_classes)).to(self.device)
         # Bags may be of different sizes, so we can't use a tensor to store the instance predictions
         bag_instance_predictions = []
         for i, instances in enumerate(bags):
@@ -96,6 +98,7 @@ class InstanceSpaceNN(MultipleInstanceNN, ABC):
             instance_embeddings = self.encoder(instances)
 
             # Classify instances and aggregate
+            #  Here, the instance interpretations are actually predictions
             bag_prediction, instance_predictions = self.aggregator(instance_embeddings)
 
             # Update outputs
@@ -119,6 +122,7 @@ class EmbeddingSpaceNN(MultipleInstanceNN, ABC):
             instance_embeddings = self.encoder(instances)
 
             # Classify instances and aggregate
+            #  This model does not produce any instance interpretations
             bag_prediction, _ = self.aggregator(instance_embeddings)
 
             # Update outputs
@@ -135,19 +139,20 @@ class AttentionNN(MultipleInstanceNN, ABC):
 
     def _internal_forward(self, bags):
         bag_predictions = torch.zeros((len(bags), self.n_classes)).to(self.device)
-        bag_attns = []
+        all_attention_values = []
         for i, instances in enumerate(bags):
             # Embed instances
             instances = instances.to(self.device)
             instance_embeddings = self.encoder(instances)
 
             # Classify instances and aggregate
-            bag_prediction, attn = self.aggregator(instance_embeddings)
+            #  Instance interpretations is the attention value assigned to each instance in the bag
+            bag_prediction, instance_attention_values = self.aggregator(instance_embeddings)
 
             # Update outputs
             bag_predictions[i] = bag_prediction
-            bag_attns.append(attn)
-        return bag_predictions, bag_attns
+            all_attention_values.append(instance_attention_values)
+        return bag_predictions, all_attention_values
 
 
 class ClusterGNN(MultipleInstanceModel, ABC):
@@ -176,7 +181,6 @@ class ClusterGNN(MultipleInstanceModel, ABC):
         bags = [model_input] if unbatched_bag else model_input
 
         # Actually pass the input through the model
-        #  We don't care about any interpretability output here
         bag_predictions, bag_cluster_weights = self._internal_forward(bags)
 
         # Return single pred if unbatched_bag bag else multiple preds

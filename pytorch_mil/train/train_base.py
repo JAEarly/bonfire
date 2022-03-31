@@ -137,8 +137,8 @@ class Trainer(ABC):
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_train_metrics, _ = metrics.eval_model(model, train_dataloader, criterion, self.metric_clz)
-        epoch_val_metrics, _ = metrics.eval_model(model, val_dataloader, criterion, self.metric_clz)
+        epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
+        epoch_val_metrics = metrics.eval_model(model, val_dataloader.dataset, criterion, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
@@ -216,9 +216,9 @@ class Trainer(ABC):
         best_model, train_metrics, val_metrics, early_stopped = train_outputs
         if hasattr(best_model, 'flatten_parameters'):
             best_model.flatten_parameters()
-        train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
-                                                                         test_dataloader, self.get_criterion(),
-                                                                         self.metric_clz, verbose=verbose)
+        train_results, val_results, test_results = metrics.eval_complete(
+            best_model, train_dataloader.dataset,  val_dataloader.dataset, test_dataloader.dataset,
+            self.get_criterion(), self.metric_clz, verbose=verbose)
 
         if save_model:
             path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name)
@@ -246,8 +246,9 @@ class Trainer(ABC):
             model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
-            final_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader, test_dataloader,
-                                                  self.get_criterion(), self.metric_clz, verbose=False)
+            final_results = metrics.eval_complete(best_model, train_dataloader.dataset, val_dataloader.dataset,
+                                                  test_dataloader.dataset, self.get_criterion(), self.metric_clz,
+                                                  verbose=False)
             results.append(final_results)
 
             # Save model
@@ -327,7 +328,7 @@ class NetTrainerMixin:
     base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
 
     def create_dataloader(self, dataset, batch_size):
-        if self.model_clz.__base__ not in self.base_models:
+        if not any([base_clz in self.base_models for base_clz in self.model_clz.__bases__]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
         return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
 

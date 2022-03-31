@@ -31,8 +31,8 @@ def get_results(device, dataset_name, model_name):
         train_dataloader, val_dataloader, test_dataloader = trainer.create_dataloaders(seed=seed)
         model_path, _, _ = get_default_save_path(dataset_name, model_name, repeat=i)
         model = model_clz.load_model(device, model_path)
-        repeat_results = eval_complete(model, train_dataloader, val_dataloader, test_dataloader, trainer.get_criterion(),
-                                       trainer.metric_clz, verbose=False)
+        repeat_results = eval_complete(model, train_dataloader.dataset, val_dataloader.dataset, test_dataloader.dataset,
+                                       trainer.get_criterion(), trainer.metric_clz, verbose=False)
         results.append(repeat_results)
     return results
 
