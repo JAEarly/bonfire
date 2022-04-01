@@ -136,15 +136,14 @@ class LstmBlock(nn.Module):
         self.bidirectional = bidirectional
         self.d_hid = d_hid
         self.dropout = nn.Dropout(p=dropout)
+        self.init_hidden = nn.Parameter(torch.zeros(1, 2 * n_layers if bidirectional else n_layers, d_hid))
+        self.init_cell = nn.Parameter(torch.zeros(1, 2 * n_layers if bidirectional else n_layers, d_hid))
 
     def forward(self, x):
         _, n_instances, _ = x.shape
 
-        # Normalise before lstm block
-        x = self.pre_layer_norm(x)
-
         # Pass through lstm
-        out, (ht, _) = self.lstm(x)
+        out, (ht, _) = self.lstm(x, (self.init_hidden, self.init_cell))
 
         # Get lstm output
         if self.bidirectional:

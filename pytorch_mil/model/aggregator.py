@@ -162,7 +162,7 @@ class LstmCumulativeWithInstanceAggregator(Aggregator):
         # Get prediction for each instance
         instance_predictions = self.embedding_classifier(concat_reprs)
         # Aggregate to bag prediction
-        bag_prediction = self.aggregation_func(instance_predictions)
+        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
     def flatten_parameters(self):
@@ -196,7 +196,7 @@ class LstmCumulativeWithInstanceSeparateEncodingAggregator(Aggregator):
         # Get prediction for each instance
         instance_predictions = self.embedding_classifier(concat_reprs)
         # Aggregate to bag prediction
-        bag_prediction = self.aggregation_func(instance_predictions)
+        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
     def flatten_parameters(self):
