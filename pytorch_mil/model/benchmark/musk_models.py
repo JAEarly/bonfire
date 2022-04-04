@@ -76,8 +76,8 @@ class MuskMiLstm(models.MiLstm):
     def __init__(self, device, d_enc=128, ds_enc_hid=(256,), d_lstm_hid=128, n_lstm_layers=2,
                  bidirectional=True, ds_fc_hid=(64,), dropout=0.2):
         encoder = mod.FullyConnectedStack(MuskDataset.d_in, ds_enc_hid, d_enc, dropout, raw_last=False)
-        aggregator = agg.LstmFinalOnlyAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional,
-                                                 dropout, ds_fc_hid, MuskDataset.n_classes)
+        aggregator = agg.LstmEmbeddingSpaceAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional,
+                                                      dropout, ds_fc_hid, MuskDataset.n_classes)
         super().__init__(device, MuskDataset.n_classes, MuskDataset.n_expected_dims, encoder, aggregator)
 
     @overrides

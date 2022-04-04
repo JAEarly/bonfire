@@ -11,7 +11,7 @@ def load_datasets(dataset_name, seed=None):
     #     train_dataset, val_dataset, test_dataset = tef_dataset.create_datasets(dataset_name, random_state=seed)
     else:
         raise ValueError('Invalid dataset name: {:s}'.format(dataset_name))
-    train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=1, num_workers=1)
-    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1, num_workers=1)
-    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=1, num_workers=1)
+    train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=1)
+    val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1)
+    test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=1)
     return train_dataloader, val_dataloader, test_dataloader

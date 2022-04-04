@@ -8,6 +8,7 @@ from torch_geometric.nn import SAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
 
 from pytorch_mil.model import modules as mod
+from pytorch_mil.model import aggregator as agg
 
 
 class MultipleInstanceModel(nn.Module, ABC):
@@ -231,11 +232,10 @@ class ClusterGNN(MultipleInstanceModel, ABC):
 
 class MiLstm(MultipleInstanceNN, ABC):
 
-    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator, shuffle_instances=False):
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
         super().__init__(device, n_classes, n_expec_dims)
         self.encoder = encoder
         self.aggregator = aggregator
-        self.shuffle_instances = shuffle_instances
 
     # -- UNUSED --
     # def create_mi_networks(self):
@@ -270,8 +270,6 @@ class MiLstm(MultipleInstanceNN, ABC):
         # First pass: get instance embeddings, bag embeddings, and bag predictions.
         for i, instances in enumerate(bags):
             instances = instances.to(self.device)
-            if self.training and self.shuffle_instances:
-                instances = instances[torch.randperm(len(instances))]
             instance_embeddings = self.encoder(instances)
             bag_prediction, cumulative_bag_predictions = self.aggregator(instance_embeddings)
             bag_predictions[i] = bag_prediction
@@ -334,3 +332,24 @@ class MiLstm(MultipleInstanceNN, ABC):
 
     def flatten_parameters(self):
         self.aggregator.flatten_parameters()
+
+
+class EmbeddingSpaceLSTM(MiLstm, ABC):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims, encoder, aggregator)
+        assert type(aggregator) == agg.LstmEmbeddingSpaceAggregator
+
+
+class InstanceSpaceLSTM(MiLstm, ABC):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims, encoder, aggregator)
+        assert type(aggregator) == agg.LstmInstanceSpaceAggregator
+
+
+class ResidualInstanceSpaceLSTM(MiLstm, ABC):
+
+    def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
+        super().__init__(device, n_classes, n_expec_dims, encoder, aggregator)
+        assert type(aggregator) == agg.LstmResidualInstanceSpaceAggregator

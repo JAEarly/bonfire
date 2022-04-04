@@ -79,7 +79,7 @@ class Trainer(ABC):
 
     def load_datasets(self, seed=None):
         if self.dataset_params is not None:
-            return self.dataset_clz.create_datasets(**self.dataset_params, seed=seed)
+            return self.dataset_clz.create_datasets(seed=seed, **self.dataset_params)
         return self.dataset_clz.create_datasets(seed=seed)
 
     def create_dataloader(self, dataset, batch_size):
@@ -328,9 +328,9 @@ class NetTrainerMixin:
     base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
 
     def create_dataloader(self, dataset, batch_size):
-        if not any([base_clz in self.base_models for base_clz in self.model_clz.__bases__]):
+        if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
+        return DataLoader(dataset, shuffle=True, batch_size=batch_size)
 
 
 class GNNTrainerMixin:
@@ -338,6 +338,6 @@ class GNNTrainerMixin:
     base_models = [models.ClusterGNN]
 
     def create_dataloader(self, dataset, batch_size):
-        if self.model_clz.__base__ not in self.base_models:
+        if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
         return GraphDataloader(dataset)

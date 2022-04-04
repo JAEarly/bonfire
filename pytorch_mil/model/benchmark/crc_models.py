@@ -94,8 +94,8 @@ class CrcMiLSTM(models.MiLstm):
     def __init__(self, device, d_enc=256, ds_enc_hid=(64, 64), d_lstm_hid=256, n_lstm_layers=1,
                  bidirectional=False, ds_fc_hid=(), dropout=0.2):
         encoder = CrcEncoder(ds_enc_hid, d_enc, dropout)
-        aggregator = agg.LstmFinalOnlyAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional, dropout, ds_fc_hid,
-                                                 CrcDataset.n_classes)
+        aggregator = agg.LstmEmbeddingSpaceAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional, dropout, ds_fc_hid,
+                                                      CrcDataset.n_classes)
         super().__init__(device, CrcDataset.n_classes, CrcDataset.n_expected_dims, encoder, aggregator)
 
     @overrides

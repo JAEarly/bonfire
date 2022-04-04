@@ -97,8 +97,8 @@ class FourMnistMiLstm(models.MiLstm):
     def __init__(self, device, d_enc=128, ds_enc_hid=(), d_lstm_hid=128, n_lstm_layers=1,
                  bidirectional=False, ds_fc_hid=(), dropout=0.2):
         encoder = MnistEncoder(ds_enc_hid, d_enc, dropout)
-        aggregator = agg.LstmFinalOnlyAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional,
-                                                 dropout, ds_fc_hid, FourMnistBagsDataset.n_classes)
+        aggregator = agg.LstmEmbeddingSpaceAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional,
+                                                      dropout, ds_fc_hid, FourMnistBagsDataset.n_classes)
         super().__init__(device, FourMnistBagsDataset.n_classes, FourMnistBagsDataset.n_expected_dims,
                          encoder, aggregator)
 

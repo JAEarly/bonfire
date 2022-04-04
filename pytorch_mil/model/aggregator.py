@@ -82,7 +82,7 @@ class CountAggregator(Aggregator):
         return bag_prediction, instance_attributions
 
 
-class LstmFinalOnlyAggregator(Aggregator):
+class LstmEmbeddingSpaceAggregator(Aggregator):
     """
     An LSTM Aggregator that only makes the bag prediction based on the final hidden state.
     """
@@ -111,7 +111,7 @@ class LstmFinalOnlyAggregator(Aggregator):
         self.lstm_block.flatten_parameters()
 
 
-class LstmCumulativeAggregator(Aggregator):
+class LstmInstanceSpaceAggregator(Aggregator):
     """
     An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states and then
     performing some aggregation (e.g., mean, sum) over all the instance predictions.
@@ -139,7 +139,7 @@ class LstmCumulativeAggregator(Aggregator):
         self.lstm_block.flatten_parameters()
 
 
-class LstmCumulativeWithInstanceAggregator(Aggregator):
+class LstmResidualInstanceSpaceAggregator(Aggregator):
     """
     An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states concatenated to
     their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
@@ -159,40 +159,6 @@ class LstmCumulativeWithInstanceAggregator(Aggregator):
         _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
         # Concatenate the instance embeddings with the cumulative bag embeddings
         concat_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze()), dim=1)
-        # Get prediction for each instance
-        instance_predictions = self.embedding_classifier(concat_reprs)
-        # Aggregate to bag prediction
-        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
-        return bag_prediction, instance_predictions
-
-    def flatten_parameters(self):
-        self.lstm_block.flatten_parameters()
-
-
-class LstmCumulativeWithInstanceSeparateEncodingAggregator(Aggregator):
-    """
-    An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states concatenated to
-    their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
-    Assumes forward direction only.
-    """
-
-    def __init__(self, d_lstm_in, d_fc_in, d_hid, n_lstm_layers, dropout, ds_hid, n_classes, agg_func_name):
-        super().__init__()
-        self.lstm_block = mod.LstmBlock(d_lstm_in, d_hid, n_lstm_layers, False, dropout)
-        self.embedding_size = d_fc_in + d_hid
-        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
-                                                            dropout, raw_last=True)
-        self.aggregation_func = self._parse_agg_method(agg_func_name)
-
-    def forward(self, lstm_instance_embeddings, fc_instance_embeddings):
-        """
-        :param lstm_instance_embeddings: Embeddings to be passed through the LSTM block
-        :param fc_instance_embeddings: Embeddings to be passed straight to the fully connected classifier
-        """
-        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
-        _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(lstm_instance_embeddings, 0))
-        # Concatenate the instance embeddings with the cumulative bag embeddings
-        concat_reprs = torch.cat((fc_instance_embeddings, cumulative_bag_embeddings.squeeze()), dim=1)
         # Get prediction for each instance
         instance_predictions = self.embedding_classifier(concat_reprs)
         # Aggregate to bag prediction

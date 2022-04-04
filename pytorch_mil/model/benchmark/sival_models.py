@@ -76,8 +76,8 @@ class SivalMiLstm(models.MiLstm):
     def __init__(self, device, d_enc=128, ds_enc_hid=(512,), d_lstm_hid=512, n_lstm_layers=1,
                  bidirectional=True, ds_fc_hid=(), dropout=0.15, shuffle_instances=True):
         encoder = mod.FullyConnectedStack(SivalDataset.d_in, ds_enc_hid, d_enc, dropout=0, raw_last=False)
-        aggregator = agg.LstmFinalOnlyAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional, dropout, ds_fc_hid,
-                                                 SivalDataset.n_classes)
+        aggregator = agg.LstmEmbeddingSpaceAggregator(d_enc, d_lstm_hid, n_lstm_layers, bidirectional, dropout, ds_fc_hid,
+                                                      SivalDataset.n_classes)
         super().__init__(device, SivalDataset.n_classes, SivalDataset.n_expected_dims,
                          encoder, aggregator, shuffle_instances=shuffle_instances)
 

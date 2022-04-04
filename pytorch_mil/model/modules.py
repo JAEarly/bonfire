@@ -129,7 +129,6 @@ class LstmBlock(nn.Module):
 
     def __init__(self, d_in, d_hid, n_layers, bidirectional, dropout):
         super().__init__()
-        self.pre_layer_norm = nn.LayerNorm(d_in)
         # For the LSTM block, a non-zero dropout expects num_layers greater than 1
         self.lstm = nn.LSTM(input_size=d_in, hidden_size=d_hid, num_layers=n_layers,
                             bidirectional=bidirectional, batch_first=True, dropout=0 if n_layers == 1 else dropout)
