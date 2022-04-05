@@ -1,5 +1,5 @@
-from bonfire.train.benchmark import crc_training, count_mnist_training, four_mnist_training, musk_training,\
-    sival_training, tef_training
+from bonfire.train.benchmark import crc_training, count_mnist_training, dgr_training, four_mnist_training, \
+    musk_training, sival_training, tef_training
 
 
 def get_trainer_clz(dataset_name, model_clz):
@@ -7,6 +7,8 @@ def get_trainer_clz(dataset_name, model_clz):
         trainer_clzs = crc_training.get_trainer_clzs()
     elif dataset_name == 'count_mnist':
         trainer_clzs = count_mnist_training.get_trainer_clzs()
+    elif dataset_name == 'dgr':
+        trainer_clzs = dgr_training.get_trainer_clzs()
     elif dataset_name == 'four_mnist':
         trainer_clzs = four_mnist_training.get_trainer_clzs()
     elif dataset_name == 'musk':
