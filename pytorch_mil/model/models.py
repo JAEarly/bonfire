@@ -330,6 +330,12 @@ class MiLstm(MultipleInstanceNN, ABC):
     #
     #     return mi_scores
 
+    def get_hidden_states(self, bag):
+        instances = bag.to(self.device)
+        instance_embeddings = self.encoder(instances)
+        _, hidden_states = self.aggregator.lstm_block(torch.unsqueeze(instance_embeddings, 0))
+        return hidden_states.squeeze()
+
     def flatten_parameters(self):
         self.aggregator.flatten_parameters()
 
