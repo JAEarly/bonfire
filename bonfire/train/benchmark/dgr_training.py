@@ -1,17 +1,20 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.dgr.dgr_dataset import DGRDataset, DGR_N_CLASSES
-from pytorch_mil.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from pytorch_mil.data.benchmark.dgr.dgr_dataset import DGRDataset
+from pytorch_mil.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
     return [DgrNetTrainer, DgrGNNTrainer]
 
 
-class DgrTrainer(MinimiseRegressionTrainer, ABC):
+class DgrTrainer(RegressionTrainer, ABC):
 
-    def __init__(self, device, train_params, model_clz, model_params=None):
-        super().__init__(device, "drg", DGR_N_CLASSES, model_clz, model_params, train_params)
+    dataset_clz = DGRDataset
+
+    def __init__(self, device, model_clz, dataset_name, model_params=None, train_params_override=None):
+        super().__init__(device, model_clz, dataset_name, dataset_params={}, model_params=model_params,
+                         train_params_override=train_params_override)
 
     def load_datasets(self, seed=None):
         return DGRDataset.create_datasets(random_state=seed)

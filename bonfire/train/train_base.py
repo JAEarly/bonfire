@@ -7,14 +7,13 @@ import numpy as np
 import optuna
 import torch
 from matplotlib import pyplot as plt
-from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from bonfire.data.mil_graph_dataset import GraphDataloader
 from bonfire.model import models
 from bonfire.train import metrics, get_default_save_path
-from bonfire.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
+from bonfire.train.metrics import ClassificationMetric, RegressionMetric
 
 
 # -- UNUSED --
@@ -113,11 +112,11 @@ class Trainer(ABC):
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
-        # epoch_train_loss = 0
+        epoch_train_loss = 0
         # epoch_prediction_loss = 0
         # epoch_mi_loss = 0
         # epoch_mi_sub_losses = torch.zeros(3)
-        for data in train_dataloader:
+        for data in tqdm(train_dataloader, desc='Epoch Progress', leave=False):
             bags, targets = data[0], data[1].to(self.device)
             optimizer.zero_grad()
             outputs = model(bags)
@@ -127,18 +126,20 @@ class Trainer(ABC):
             # loss = prediction_loss + mi_loss
             loss.backward()
             optimizer.step()
-            # epoch_train_loss += loss.item()
+            epoch_train_loss += loss.item()
             # epoch_prediction_loss += prediction_loss.item()
             # epoch_mi_loss += mi_loss.item()
             # epoch_mi_sub_losses += mi_sub_losses.detach()
-        # epoch_train_loss /= len(train_dataloader)
+
+        epoch_train_loss /= len(train_dataloader)
         # epoch_prediction_loss /= len(train_dataloader)
 
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
-        epoch_val_metrics = metrics.eval_model(model, val_dataloader.dataset, criterion, self.metric_clz)
+        epoch_train_metrics = self.metric_clz.from_train_loss(epoch_train_loss)
+        # epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
+        epoch_val_metrics = metrics.eval_model(model, val_dataloader.dataset, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
@@ -218,7 +219,7 @@ class Trainer(ABC):
             best_model.flatten_parameters()
         train_results, val_results, test_results = metrics.eval_complete(
             best_model, train_dataloader.dataset,  val_dataloader.dataset, test_dataloader.dataset,
-            self.get_criterion(), self.metric_clz, verbose=verbose)
+            self.metric_clz, verbose=verbose)
 
         if save_model:
             path, save_dir = self.get_model_save_path(best_model, None)
@@ -250,8 +251,7 @@ class Trainer(ABC):
             if hasattr(best_model, 'flatten_parameters'):
                 best_model.flatten_parameters()
             final_results = metrics.eval_complete(best_model, train_dataloader.dataset, val_dataloader.dataset,
-                                                  test_dataloader.dataset, self.get_criterion(), self.metric_clz,
-                                                  verbose=False)
+                                                  test_dataloader.dataset, self.metric_clz, verbose=False)
             results.append(final_results)
 
             # Save model
@@ -274,7 +274,7 @@ class ClassificationTrainer(Trainer, ABC):
     metric_clz = ClassificationMetric
 
     def get_criterion(self):
-        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
+        return ClassificationMetric.criterion()
 
     def plot_training(self, train_metrics, val_metrics):
         x_range = range(len(train_metrics))
@@ -300,20 +300,12 @@ class ClassificationTrainer(Trainer, ABC):
         plt.show()
 
 
-class MaximizeRegressionTrainer(Trainer, ABC):
+class RegressionTrainer(Trainer, ABC):
 
-    metric_clz = MaximizeRegressionMetric
-
-    def get_criterion(self):
-        raise NotImplementedError
-
-
-class MinimiseRegressionTrainer(Trainer, ABC):
-
-    metric_clz = MinimiseRegressionMetric
+    metric_clz = RegressionMetric
 
     def get_criterion(self):
-        return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())
+        return RegressionMetric.criterion()
 
     def plot_training(self, train_metrics, val_metrics):
         x_range = range(len(train_metrics))
@@ -338,7 +330,7 @@ class NetTrainerMixin:
     def create_dataloader(self, dataset, batch_size):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        return DataLoader(dataset, shuffle=True, batch_size=batch_size)
+        return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=2)
 
 
 class GNNTrainerMixin:
@@ -348,4 +340,6 @@ class GNNTrainerMixin:
     def create_dataloader(self, dataset, batch_size):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
+        # TODO n_workers for Graph data loader
+        raise NotImplementedError
         return GraphDataloader(dataset)

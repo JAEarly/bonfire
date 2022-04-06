@@ -5,10 +5,12 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
+from torch import nn
 from torchvision import transforms
 from tqdm import tqdm
 
 from pytorch_mil.data.mil_dataset import MilDataset
+from pytorch_mil.train.metrics import RegressionMetric
 
 
 def load_metadata_df():
@@ -34,32 +36,38 @@ TARGET_OUT_PATH = 'data/DGR/targets.csv'
 COVER_DIST_PATH = 'data/DGR/cover_dist.csv'
 METADATA_DF = load_metadata_df()
 CLASS_DICT_DF = load_class_dict_df()
-DGR_N_CLASSES = 1
-DGR_FV_SIZE = 1200
-DGR_N_EXPECTED_DIMS = 4  # i x c x h x w
+
+basic_transform = transforms.Compose([transforms.ToTensor(),
+                                      transforms.Normalize((0.2811, 0.3786, 0.4077), (0.0696, 0.0759, 0.1054))])
 
 
 class DGRDataset(MilDataset):
 
-    def __init__(self, bags, targets, ids):
-        super().__init__("DGR", bags, targets, None)
-        self.transform = transforms.Compose([transforms.ToTensor(), transforms.Resize(28)])
-        self.ids = ids
+    d_in = 1200
+    n_expected_dims = 4  # i x c x h x w
+    n_classes = 1
+
+    def __init__(self, bags, targets, bags_metadata):
+        super().__init__(bags, targets, None, bags_metadata)
+        self.transform = basic_transform
 
     @classmethod
-    def create_datasets(cls, random_state=12, patch_size=102):
-        bags, targets, ids = DGRDataset.load_dgr_bags(patch_size=patch_size)
+    def create_datasets(cls, random_state=12, grid_size=153, patch_size=28):
+        bags, targets, bags_metadata = DGRDataset.load_dgr_bags(patch_size=patch_size)
 
-        train_bags, test_bags, train_targets, test_targets, train_ids, test_ids = \
-            train_test_split(bags, targets, ids, train_size=0.6, random_state=random_state)
-        val_bags, test_bags, val_targets, test_targets, val_ids, test_ids = \
-            train_test_split(test_bags, test_targets, test_ids, train_size=0.5, random_state=random_state)
+        train_bags, test_bags, train_targets, test_targets, train_bags_metadata, test_bags_metadata = \
+            train_test_split(bags, targets, bags_metadata, train_size=0.6, random_state=random_state)
+        val_bags, test_bags, val_targets, test_targets, val_bags_metadata, test_bags_metadata = \
+            train_test_split(test_bags, test_targets, test_bags_metadata, train_size=0.5, random_state=random_state)
 
-        train_dataset = DGRDataset(train_bags, train_targets, train_ids)
-        val_dataset = DGRDataset(val_bags, val_targets, val_ids)
-        test_dataset = DGRDataset(test_bags, test_targets, test_ids)
+        train_dataset = DGRDataset(train_bags, train_targets, train_bags_metadata)
+        val_dataset = DGRDataset(val_bags, val_targets, val_bags_metadata)
+        test_dataset = DGRDataset(test_bags, test_targets, test_bags_metadata)
 
         return train_dataset, val_dataset, test_dataset
+
+    def create_complete_dataset(cls):
+        raise NotImplementedError
 
     def __getitem__(self, index):
         instances = self._load_instances(index)
@@ -78,14 +86,14 @@ class DGRDataset(MilDataset):
         return instances
 
     @staticmethod
-    def load_dgr_bags(patch_size=102):
-        patches_df = pd.read_csv("data/DGR/patch_{:d}_data.csv".format(patch_size))
+    def load_dgr_bags(grid_size=153, patch_size=28):
+        patches_df = pd.read_csv("data/DGR/patch_{:d}_{:d}_data.csv".format(grid_size, patch_size))
         coverage_df = DGRDataset.load_per_class_coverage()
         complete_df = pd.merge(patches_df, coverage_df, on='image_id')
-        ids = complete_df['image_id'].tolist()
         bags = [s.split(",") for s in complete_df['patch_paths'].tolist()]
         targets = complete_df['agriculture_land'].tolist()
-        return bags, targets, ids
+        bags_metadata = [{'id': id_} for id_ in complete_df['image_id'].tolist()]
+        return bags, targets, bags_metadata
 
     @staticmethod
     def target_to_rgb(target):
@@ -179,11 +187,13 @@ class DGRDataset(MilDataset):
         return new_mask
 
     @staticmethod
-    def extract_grid_patches(patch_size=102):
-        num_patches = int(2448 / patch_size * 2448 / patch_size)
+    def extract_grid_patches(grid_size=153, patch_size=28):
+        num_patches = int(2448 / grid_size * 2448 / grid_size)
         print('{:d} patches per image'.format(num_patches))
+        reconstructed_dim = int(num_patches ** 0.5 * patch_size)
+        print('{:d} x {:d} effective new size'.format(reconstructed_dim, reconstructed_dim))
 
-        patch_dir = 'data/DGR/patch_{:d}'.format(patch_size)
+        patch_dir = 'data/DGR/patch_{:d}_{:d}'.format(grid_size, patch_size)
         if not os.path.exists(patch_dir):
             os.makedirs(patch_dir)
 
@@ -195,20 +205,58 @@ class DGRDataset(MilDataset):
             sat_path = METADATA_DF['sat_image_path'][i]
             sat_img = cv2.cvtColor(cv2.imread(sat_path), cv2.COLOR_BGR2RGB)
 
-            n_x = int(sat_img.shape[0]/patch_size)
-            n_y = int(sat_img.shape[1]/patch_size)
+            n_x = int(sat_img.shape[0]/grid_size)
+            n_y = int(sat_img.shape[1]/grid_size)
 
             patch_paths = []
             for i_x in range(n_x):
                 for i_y in range(n_y):
-                    p_x = i_x * patch_size
-                    p_y = i_y * patch_size
-                    patch_img = sat_img[p_x:p_x+patch_size, p_y:p_y+patch_size, :]
-                    patch_path = "{:s}/{:d}_{:d}_{:d}.png".format(patch_dir, image_id, i_x, i_y)
+                    p_x = i_x * grid_size
+                    p_y = i_y * grid_size
+                    patch_img = sat_img[p_x:p_x+grid_size, p_y:p_y+grid_size, :]
+                    patch_img = cv2.resize(patch_img, (patch_size, patch_size))
+                    patch_path = "{:s}/{:d}_{:d}_{:d}_2.png".format(patch_dir, image_id, i_x, i_y)
                     patch_paths.append(patch_path)
                     cv2.imwrite(patch_path, patch_img)
 
             patches_df.loc[i, 'patch_paths'] = ",".join(patch_paths)
 
-        patches_df.to_csv("data/DGR/patch_{:d}_data.csv".format(patch_size), index=False)
+        patches_df.to_csv("data/DGR/patch_{:d}_{:d}_data.csv".format(grid_size, patch_size), index=False)
 
+    @classmethod
+    def baseline_performance(cls):
+        train_dataset, val_dataset, test_dataset = cls.create_datasets()
+        train_mean_target = train_dataset.targets.mean()
+
+        def performance_for_dataset(pred, dataset):
+            targets = dataset.targets
+            preds = torch.ones_like(targets)
+            preds *= pred
+            mse_metric = RegressionMetric.calculate_metric(preds, targets, nn.MSELoss(), None)
+            mae_metric = RegressionMetric.calculate_metric(preds, targets, nn.L1Loss(), None)
+            print('MSE Loss: {:.4f}'.format(mse_metric.loss))
+            print('MSE Loss: {:.4f}'.format(mae_metric.loss))
+
+        print('-- Train --')
+        performance_for_dataset(train_mean_target, train_dataset)
+        print('-- Val --')
+        performance_for_dataset(train_mean_target, val_dataset)
+        print('-- Test --')
+        performance_for_dataset(train_mean_target, test_dataset)
+
+    @classmethod
+    def calculate_dataset_normalisation(cls):
+        bags, _, _ = cls.load_dgr_bags()
+        avgs = []
+        transformation = transforms.ToTensor()
+        for bag in tqdm(bags, "Calculating dataset norm"):
+            for file_name in bag:
+                img = cv2.cvtColor(cv2.imread(file_name), cv2.COLOR_BGR2RGB)
+                avg = torch.mean(transformation(img), dim=(1, 2))
+                avgs.append(avg)
+        arrs = torch.stack(avgs)
+        print(arrs.shape)
+        arrs_mean = torch.mean(arrs, dim=0)
+        arrs_std = torch.std(arrs, dim=0)
+        print(arrs_mean)
+        print(arrs_std)

@@ -19,7 +19,7 @@ def parse_args():
                         help='The seeds for the training. Should be at least as long as the number of repeats.')
     parser.add_argument('-r', '--n_repeats', default=1, type=int, help='The number of models to train (>=1).')
     parser.add_argument('-e', '--n_epochs', default=150, type=int, help='The number of epochs to train for.')
-    parser.add_argument('-p', '--patience', default=15, type=int, help='The patience to use during training.')
+    parser.add_argument('-p', '--patience', default=15, help='The patience to use during training.')
     args = parser.parse_args()
     return args.dataset_name, args.model_name, args.seeds, args.n_repeats, args.n_epochs, args.patience
 
@@ -43,6 +43,8 @@ def run_training():
     print('  Model Class: {:}'.format(model_clz))
     print('  Trainer Class: {:}'.format(trainer_clz))
 
+    patience = None if patience == 'None' else patience
+    assert patience is None or type(patience) is int
     train_params = {
         'n_epochs': n_epochs,
         'patience': patience
@@ -52,9 +54,9 @@ def run_training():
     print('  Seeds: {:}'.format(seeds))
 
     if dataset_name in ['tiger', 'elephant', 'fox']:
-        trainer = trainer_clz(device, train_params, model_clz, dataset_name)
+        trainer = trainer_clz(device, model_clz, dataset_name, train_params_override=train_params)
     else:
-        trainer = trainer_clz(device, train_params, model_clz)
+        trainer = trainer_clz(device, model_clz, dataset_name, train_params_override=train_params)
 
     if n_repeats > 1:
         print('  Training using multiple trainer')

@@ -1,14 +1,14 @@
 from abc import ABC
 
 from bonfire.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
-from bonfire.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
     return [CountMnistNetTrainer, CountMnistGNNTrainer]
 
 
-class CountMnistTrainer(MinimiseRegressionTrainer, ABC):
+class CountMnistTrainer(RegressionTrainer, ABC):
 
     dataset_clz = CountMnistBagsDataset
 
