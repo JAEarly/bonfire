@@ -215,7 +215,7 @@ class DGRDataset(MilDataset):
                     p_y = i_y * grid_size
                     patch_img = sat_img[p_x:p_x+grid_size, p_y:p_y+grid_size, :]
                     patch_img = cv2.resize(patch_img, (patch_size, patch_size))
-                    patch_path = "{:s}/{:d}_{:d}_{:d}_2.png".format(patch_dir, image_id, i_x, i_y)
+                    patch_path = "{:s}/{:d}_{:d}_{:d}.png".format(patch_dir, image_id, i_x, i_y)
                     patch_paths.append(patch_path)
                     cv2.imwrite(patch_path, patch_img)
 
@@ -232,10 +232,9 @@ class DGRDataset(MilDataset):
             targets = dataset.targets
             preds = torch.ones_like(targets)
             preds *= pred
-            mse_metric = RegressionMetric.calculate_metric(preds, targets, nn.MSELoss(), None)
-            mae_metric = RegressionMetric.calculate_metric(preds, targets, nn.L1Loss(), None)
-            print('MSE Loss: {:.4f}'.format(mse_metric.loss))
-            print('MSE Loss: {:.4f}'.format(mae_metric.loss))
+            metric = RegressionMetric.calculate_metric(preds, targets, None)
+            print('MSE Loss: {:.4f}'.format(metric.mse_loss))
+            print('MAE Loss: {:.4f}'.format(metric.mae_loss))
 
         print('-- Train --')
         performance_for_dataset(train_mean_target, train_dataset)

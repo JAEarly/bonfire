@@ -309,8 +309,8 @@ class RegressionTrainer(Trainer, ABC):
 
     def plot_training(self, train_metrics, val_metrics):
         x_range = range(len(train_metrics))
-        train_losses = [m.loss for m in train_metrics]
-        val_losses = [m.loss for m in val_metrics]
+        train_losses = [m.mse_loss for m in train_metrics]
+        val_losses = [m.mse_loss for m in val_metrics]
 
         fig, axis = plt.subplots(nrows=1, ncols=1, figsize=(7, 5))
         axis.plot(x_range, train_losses, label='Train')
