@@ -158,7 +158,7 @@ class LstmResidualInstanceSpaceAggregator(Aggregator):
         # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
         _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
         # Concatenate the instance embeddings with the cumulative bag embeddings
-        concat_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze()), dim=1)
+        concat_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze(0)), dim=1)
         # Get prediction for each instance
         instance_predictions = self.embedding_classifier(concat_reprs)
         # Aggregate to bag prediction
