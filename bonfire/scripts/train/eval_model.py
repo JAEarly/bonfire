@@ -66,10 +66,9 @@ def evaluate_multiple(dataset_name, model_clz, trainer, seeds):
 
 def get_results(trainer, seed, model_clz, model_path):
     results = np.empty((1, 3), dtype=object)
-    train_dataloader, val_dataloader, test_dataloader = trainer.create_dataloaders(seed=seed)
+    train_dataset, val_dataset, test_dataset = trainer.load_datasets(seed)
     model = model_clz.load_model(device, model_path)
-    results_list = eval_complete(model, train_dataloader.dataset, val_dataloader.dataset, test_dataloader.dataset,
-                                 trainer.metric_clz, verbose=False)
+    results_list = eval_complete(model, train_dataset, val_dataset, test_dataset, trainer.metric_clz, verbose=False)
     results[0, :] = results_list
     return results
 

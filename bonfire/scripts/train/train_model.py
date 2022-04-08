@@ -7,7 +7,7 @@ from bonfire.util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'count_mnist', 'dgr', 'four_mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
+DATASET_NAMES = ['crc', 'count_mnist', 'dgr', 'four_mnist', 'masati', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN', 'MiLstm']
 
 
