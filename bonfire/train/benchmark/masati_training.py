@@ -1,17 +1,14 @@
 from abc import ABC
 
 from pytorch_mil.data.benchmark.masati.masati_dataset import MasatiDataset
-from pytorch_mil.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
-from overrides import overrides
-from torch import nn
-from torch.utils.data import WeightedRandomSampler
+from pytorch_mil.train.train_base import CountRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():
     return [MasatiNetTrainer, MasatiGNNTrainer]
 
 
-class MasatiTrainer(RegressionTrainer, ABC):
+class MasatiTrainer(CountRegressionTrainer, ABC):
 
     dataset_clz = MasatiDataset
 

@@ -13,7 +13,7 @@ from tqdm import tqdm
 from bonfire.data.mil_graph_dataset import GraphDataloader
 from bonfire.model import models
 from bonfire.train import metrics, get_default_save_path
-from bonfire.train.metrics import ClassificationMetric, RegressionMetric
+from bonfire.train.metrics import ClassificationMetric, RegressionMetric, CountRegressionMetric
 
 
 # -- UNUSED --
@@ -315,6 +315,14 @@ class RegressionTrainer(Trainer, ABC):
         axis.set_ylabel('MSE Loss')
         axis.legend(loc='best')
         plt.show()
+
+
+class CountRegressionTrainer(RegressionTrainer, ABC):
+
+    metric_clz = CountRegressionMetric
+
+    def get_criterion(self):
+        return CountRegressionMetric.criterion()
 
 
 class NetTrainerMixin:

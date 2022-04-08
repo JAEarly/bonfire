@@ -95,7 +95,7 @@ class ClassificationMetric(Metric):
         print(self.conf_mat)
 
 
-class RegressionMetric(Metric, ABC):
+class RegressionMetric(Metric):
 
     optimise_direction = 'minimise'
 
@@ -129,7 +129,32 @@ class RegressionMetric(Metric, ABC):
         print('MAE Loss: {:.3f}'.format(self.mae_loss))
 
 
-def eval_complete(model, train_dataset, val_dataset, test_dataset, metric: Metric, verbose=False):
+class CountRegressionMetric(RegressionMetric):
+
+    def __init__(self, mse_loss, mae_loss, conf_mat=None):
+        super().__init__(mse_loss, mae_loss)
+        self.conf_mat = conf_mat
+
+    @staticmethod
+    def calculate_metric(preds, targets, labels):
+        regression_metric = RegressionMetric.calculate_metric(preds, targets, labels)
+        max_count = int(max(max(targets), max(preds)))
+        labels = list(range(max_count + 1))
+        conf_mat = pd.DataFrame(
+            confusion_matrix(targets.long(), torch.round(preds), labels=labels),
+            index=pd.Index(labels, name='Actual'),
+            columns=pd.Index(labels, name='Predicted')
+        )
+        return CountRegressionMetric(regression_metric.mse_loss, regression_metric.mae_loss, conf_mat)
+
+    def out(self):
+        print('MSE Loss: {:.3f}'.format(self.mse_loss))
+        print('MAE Loss: {:.3f}'.format(self.mae_loss))
+        if self.conf_mat is not None:
+            print(self.conf_mat)
+
+
+def eval_complete(model, train_dataset, val_dataset, test_dataset, metric, verbose=False):
     train_results = eval_model(model, train_dataset, metric)
     if verbose:
         print('\n-- Train Results --')
@@ -145,7 +170,7 @@ def eval_complete(model, train_dataset, val_dataset, test_dataset, metric: Metri
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataset, metric: Metric, n_workers=2, batch_size=2):
+def eval_model(model, dataset, metric, n_workers=2, batch_size=2):
     dataloader = DataLoader(dataset, shuffle=False, num_workers=n_workers, batch_size=batch_size)
     model.eval()
     with torch.no_grad():

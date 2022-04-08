@@ -19,12 +19,13 @@ def parse_args():
     parser.add_argument('-s', '--seeds', default=",".join(str(s) for s in DEFAULT_SEEDS), type=str,
                         help='The seeds for dataset generation. Should be at least as long as the number of repeats.'
                              'Should match the seeds used during training.')
+    parser.add_argument('-v', '--verbose', default=False, action="store_true")
     args = parser.parse_args()
-    return args.dataset_name, args.model_names, args.n_repeats, args.seeds
+    return args.dataset_name, args.model_names, args.n_repeats, args.seeds, args.verbose
 
 
 def run_evaluation():
-    dataset_name, model_names, n_repeats, seeds = parse_args()
+    dataset_name, model_names, n_repeats, seeds, verbose = parse_args()
     # Parse seed list
     seeds = [int(s) for s in seeds.split(",")]
     if len(seeds) < n_repeats:
@@ -40,35 +41,35 @@ def run_evaluation():
         trainer_clz = get_trainer_clz(dataset_name, model_clz)
         trainer = trainer_clz(device, model_clz, dataset_name)
         if n_repeats == 1:
-            model_results = evaluate_single(dataset_name, model_clz, trainer, seeds[0])
+            model_results = evaluate_single(dataset_name, model_clz, trainer, seeds[0], verbose)
         else:
-            model_results = evaluate_multiple(dataset_name, model_clz, trainer, seeds)
+            model_results = evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose)
         results[model_idx, :, :] = model_results
     output_results(model_names, results)
 
 
-def evaluate_single(dataset_name, model_clz, trainer, seed):
+def evaluate_single(dataset_name, model_clz, trainer, seed, verbose):
     print('    Evaluating default model, seed: {:}'.format(seed))
     model_path, _, _ = get_default_save_path(dataset_name, model_clz.__name__)
-    results = get_results(trainer, seed, model_clz, model_path)
+    results = get_results(trainer, seed, model_clz, model_path, verbose)
     return results
 
 
-def evaluate_multiple(dataset_name, model_clz, trainer, seeds):
+def evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose):
     results = np.empty((len(seeds), 3), dtype=object)
     for i in range(len(seeds)):
         seed = seeds[i]
         print('    Model {:d}/{:d}; Seed {:d}'.format(i + 1, len(DEFAULT_SEEDS), seed))
         model_path, _, _ = get_default_save_path(dataset_name, model_clz.__name__, repeat=i)
-        results[i, :] = get_results(trainer, seed, model_clz, model_path)
+        results[i, :] = get_results(trainer, seed, model_clz, model_path, verbose)
     return results
 
 
-def get_results(trainer, seed, model_clz, model_path):
+def get_results(trainer, seed, model_clz, model_path, verbose):
     results = np.empty((1, 3), dtype=object)
     train_dataset, val_dataset, test_dataset = trainer.load_datasets(seed)
     model = model_clz.load_model(device, model_path)
-    results_list = eval_complete(model, train_dataset, val_dataset, test_dataset, trainer.metric_clz, verbose=False)
+    results_list = eval_complete(model, train_dataset, val_dataset, test_dataset, trainer.metric_clz, verbose=verbose)
     results[0, :] = results_list
     return results
 
