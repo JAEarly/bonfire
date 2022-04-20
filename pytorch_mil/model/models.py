@@ -34,6 +34,9 @@ class MultipleInstanceModel(nn.Module, ABC):
     def suggest_train_params(self):
         return {}
 
+    def get_param_save_string(self):
+        return ""
+
     @classmethod
     def load_model(cls, device, path, *model_args):
         model = cls(device, *model_args)

@@ -221,7 +221,8 @@ class Trainer(ABC):
             self.get_criterion(), self.metric_clz, verbose=verbose)
 
         if save_model:
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name)
+            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
+                                                      param_save_string=best_model.get_param_save_string())
             print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
@@ -246,13 +247,16 @@ class Trainer(ABC):
             model = self.create_model()
             best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
             del model
+            if hasattr(best_model, 'flatten_parameters'):
+                best_model.flatten_parameters()
             final_results = metrics.eval_complete(best_model, train_dataloader.dataset, val_dataloader.dataset,
                                                   test_dataloader.dataset, self.get_criterion(), self.metric_clz,
                                                   verbose=False)
             results.append(final_results)
 
             # Save model
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name, repeat=i)
+            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
+                                                      param_save_string=best_model.get_param_save_string(), repeat=i)
             print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
