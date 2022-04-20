@@ -139,7 +139,7 @@ def output_results(results: List[Tuple[Metric, Metric, Metric]]):
     results_type = type(results[0][0])
     if results_type == ClassificationMetric:
         output_classification_results(results)
-    elif results_type == RegressionMetric:
+    elif issubclass(results_type, RegressionMetric):
         output_regression_results(results)
     else:
         raise NotImplementedError('No results output for metrics {:}'.format(results_type))
@@ -175,11 +175,11 @@ def output_regression_results(results: List[Tuple[RegressionMetric, RegressionMe
     raw_results = []
     for (train_results, val_results, test_results) in results:
         raw_results.append([train_results.loss, val_results.loss, test_results.loss])
-    results = np.asarray(results)
+    raw_results = np.asarray(raw_results)
     rows = [['Train Loss', 'Val Loss', 'Test Loss']]
     results_row = []
     for i in range(3):
-        values = results[:, i]
+        values = raw_results[:, i]
         mean = np.mean(values)
         sem = np.std(values) / np.sqrt(len(values))
         results_row.append('{:.4f} +- {:.4f}'.format(mean, sem))
