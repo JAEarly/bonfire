@@ -152,22 +152,24 @@ class LstmResidualInstanceSpaceAggregator(Aggregator):
         self.embedding_size = d_in + d_hid
         self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
                                                             dropout, raw_last=True)
+        # self.skip_projection = nn.Linear(d_in, d_hid)
         self.aggregation_func = self._parse_agg_method(agg_func_name)
 
     def forward(self, instance_embeddings):
         # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
         _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
 
-        # UNUSED: Residual connection adding skip projection onto LSTM hidden states
+        # Residual connection adding skip projection onto LSTM hidden states
         # Pass instance embeddings through the skip projection to match the size of the lstm block
         # skip_embeddings = self.skip_projection(instance_embeddings)
         # Add together the lstm hidden states and the skip embeddings
         # residual_reprs = cumulative_bag_embeddings.squeeze(0) + skip_embeddings
 
         # Concatenate the instance embeddings with the cumulative bag embeddings
-        concat_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze(0)), dim=1)
+        residual_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze(0)), dim=1)
+
         # Get prediction for each instance
-        instance_predictions = self.embedding_classifier(concat_reprs)
+        instance_predictions = self.embedding_classifier(residual_reprs)
         # Aggregate to bag prediction
         bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
