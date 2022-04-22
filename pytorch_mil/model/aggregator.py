@@ -139,8 +139,45 @@ class LstmInstanceSpaceAggregator(Aggregator):
         self.lstm_block.flatten_parameters()
 
 
-class LstmResidualInstanceSpaceAggregator(Aggregator):
+class LstmASCInstanceSpaceAggregator(Aggregator):
     """
+    Additive Skip Connections
+    An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states added to
+    their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
+    Assumes forward direction only.
+    """
+
+    def __init__(self, d_in, d_hid, n_lstm_layers, dropout, ds_hid, n_classes, agg_func_name):
+        super().__init__()
+        self.lstm_block = mod.LstmBlock(d_in, d_hid, n_lstm_layers, False, dropout)
+        self.embedding_size = d_hid
+        self.embedding_classifier = mod.FullyConnectedStack(self.embedding_size, ds_hid, n_classes,
+                                                            dropout, raw_last=True)
+        self.skip_projection = nn.Linear(d_in, d_hid)
+        self.aggregation_func = self._parse_agg_method(agg_func_name)
+
+    def forward(self, instance_embeddings):
+        # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
+        _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
+
+        # Pass instance embeddings through the skip projection to match the size of the lstm block
+        skip_embeddings = self.skip_projection(instance_embeddings)
+        # Add together the lstm hidden states and the skip embeddings
+        skip_reprs = cumulative_bag_embeddings.squeeze(0) + skip_embeddings
+
+        # Get prediction for each instance
+        instance_predictions = self.embedding_classifier(skip_reprs)
+        # Aggregate to bag prediction
+        bag_prediction = self.aggregation_func(instance_predictions.squeeze())
+        return bag_prediction, instance_predictions
+
+    def flatten_parameters(self):
+        self.lstm_block.flatten_parameters()
+
+
+class LstmCSCInstanceSpaceAggregator(Aggregator):
+    """
+    Concatenated Skip Connections
     An LSTM Aggregator that makes the bag prediction by predicting over all cumulative hidden states concatenated to
     their respective instance and then performing some aggregation (e.g., mean, sum) over all the instance predictions.
     Assumes forward direction only.
@@ -159,17 +196,11 @@ class LstmResidualInstanceSpaceAggregator(Aggregator):
         # Pass through lstm block. Unsqueeze as lstm block expects a 3D input
         _, cumulative_bag_embeddings = self.lstm_block(torch.unsqueeze(instance_embeddings, 0))
 
-        # Residual connection adding skip projection onto LSTM hidden states
-        # Pass instance embeddings through the skip projection to match the size of the lstm block
-        # skip_embeddings = self.skip_projection(instance_embeddings)
-        # Add together the lstm hidden states and the skip embeddings
-        # residual_reprs = cumulative_bag_embeddings.squeeze(0) + skip_embeddings
-
         # Concatenate the instance embeddings with the cumulative bag embeddings
-        residual_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze(0)), dim=1)
+        skip_reprs = torch.cat((instance_embeddings, cumulative_bag_embeddings.squeeze(0)), dim=1)
 
         # Get prediction for each instance
-        instance_predictions = self.embedding_classifier(residual_reprs)
+        instance_predictions = self.embedding_classifier(skip_reprs)
         # Aggregate to bag prediction
         bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions

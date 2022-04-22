@@ -357,8 +357,11 @@ class InstanceSpaceLSTM(MiLstm, ABC):
         assert type(aggregator) == agg.LstmInstanceSpaceAggregator
 
 
-class ResidualInstanceSpaceLSTM(MiLstm, ABC):
+class CSCInstanceSpaceLSTM(MiLstm, ABC):
+    """
+    Concatenated skip connection instance space LSTM.
+    """
 
     def __init__(self, device, n_classes, n_expec_dims, encoder, aggregator):
         super().__init__(device, n_classes, n_expec_dims, encoder, aggregator)
-        assert type(aggregator) == agg.LstmResidualInstanceSpaceAggregator
+        assert type(aggregator) == agg.LstmCSCInstanceSpaceAggregator
