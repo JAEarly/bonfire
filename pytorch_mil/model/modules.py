@@ -157,5 +157,13 @@ class LstmBlock(nn.Module):
         out = self.dropout(out)
         return bag_repr, out
 
+    def partial_forward(self, instance_embedding, hidden_state, cell_state):
+        # Forward pass but we already have a hidden and cell state, and are only doing it for one instance
+        instance_embedding = instance_embedding.unsqueeze(0).unsqueeze(0)  # Need a 3D input, currently 1D
+        out, (new_hidden_state, new_cell_state) = self.lstm(instance_embedding, (hidden_state, cell_state))
+        bag_repr = out[:, -1, :]
+        bag_repr = self.dropout(bag_repr)
+        return bag_repr, new_hidden_state, new_cell_state
+
     def flatten_parameters(self):
         self.lstm.flatten_parameters()

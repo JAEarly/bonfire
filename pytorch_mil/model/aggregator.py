@@ -205,5 +205,16 @@ class LstmCSCInstanceSpaceAggregator(Aggregator):
         bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
+    def partial_forward(self, instance_embedding, hidden_state, cell_state):
+        # Pass instance embedding and states through lstm block
+        lstm_out = self.lstm_block.partial_forward(instance_embedding, hidden_state, cell_state)
+        # Bag repr is just for the one instance, and we also get new states
+        bag_repr, new_hidden_state, new_cell_state = lstm_out
+        # Create the skip representation and classify it
+        skip_repr = torch.cat((instance_embedding.unsqueeze(0), bag_repr), dim=1)
+        instance_prediction = self.embedding_classifier(skip_repr)
+        # Return the instance prediction and new states
+        return instance_prediction, new_hidden_state, new_cell_state
+
     def flatten_parameters(self):
         self.lstm_block.flatten_parameters()
