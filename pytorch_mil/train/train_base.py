@@ -221,9 +221,9 @@ class Trainer(ABC):
             self.get_criterion(), self.metric_clz, verbose=verbose)
 
         if save_model:
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
-                                                      param_save_string=best_model.get_param_save_string())
-            print('Saving model to {:s}'.format(path))
+            path, save_dir = self.get_model_save_path(best_model, None)
+            if verbose:
+                print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             torch.save(best_model.state_dict(), path)
@@ -255,14 +255,18 @@ class Trainer(ABC):
             results.append(final_results)
 
             # Save model
-            path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
-                                                      param_save_string=best_model.get_param_save_string(), repeat=i)
+            path, save_dir = self.get_model_save_path(best_model, i)
             print('Saving model to {:s}'.format(path))
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             torch.save(best_model.state_dict(), path)
 
         metrics.output_results(results)
+
+    def get_model_save_path(self, model, repeat):
+        path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
+                                                  param_save_string=model.get_param_save_string(), repeat=repeat)
+        return path, save_dir
 
 
 class ClassificationTrainer(Trainer, ABC):
