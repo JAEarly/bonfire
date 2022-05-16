@@ -104,8 +104,18 @@ class LstmEmbeddingSpaceAggregator(Aggregator):
         if not self.training:
             with torch.no_grad():
                 cumulative_predictions = self.embedding_classifier(cumulative_bag_embeddings)
-
         return bag_prediction, cumulative_predictions
+
+    def partial_forward(self, instance_embedding, hidden_state, cell_state, prev_cumulative_bag_prediction):
+        # Pass instance embedding and states through lstm block
+        lstm_out = self.lstm_block.partial_forward(instance_embedding, hidden_state, cell_state)
+        # Bag repr is just for the one instance, and we also get new states
+        bag_repr, new_hidden_state, new_cell_state = lstm_out
+        # Classify bag representation and calculate instance prediction
+        cumulative_bag_prediction = self.embedding_classifier(bag_repr)
+        instance_prediction = cumulative_bag_prediction - prev_cumulative_bag_prediction
+        # Return the instance prediction and new states
+        return instance_prediction, new_hidden_state, new_cell_state
 
     def flatten_parameters(self):
         self.lstm_block.flatten_parameters()
@@ -134,6 +144,16 @@ class LstmInstanceSpaceAggregator(Aggregator):
         # Aggregate to bag prediction
         bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
+
+    def partial_forward(self, instance_embedding, hidden_state, cell_state, prev_cumulative_bag_prediction):
+        # Pass instance embedding and states through lstm block
+        lstm_out = self.lstm_block.partial_forward(instance_embedding, hidden_state, cell_state)
+        # Bag repr is just for the one instance, and we also get new states
+        bag_repr, new_hidden_state, new_cell_state = lstm_out
+        # Classify bag representation
+        instance_prediction = self.embedding_classifier(bag_repr)
+        # Return the instance prediction and new states
+        return instance_prediction, new_hidden_state, new_cell_state
 
     def flatten_parameters(self):
         self.lstm_block.flatten_parameters()
@@ -205,7 +225,7 @@ class LstmCSCInstanceSpaceAggregator(Aggregator):
         bag_prediction = self.aggregation_func(instance_predictions.squeeze())
         return bag_prediction, instance_predictions
 
-    def partial_forward(self, instance_embedding, hidden_state, cell_state):
+    def partial_forward(self, instance_embedding, hidden_state, cell_state, prev_cumulative_bag_prediction):
         # Pass instance embedding and states through lstm block
         lstm_out = self.lstm_block.partial_forward(instance_embedding, hidden_state, cell_state)
         # Bag repr is just for the one instance, and we also get new states

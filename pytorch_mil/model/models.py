@@ -300,12 +300,13 @@ class MiLstm(MultipleInstanceNN, ABC):
 
         return bag_predictions, all_cumulative_bag_predictions
 
-    def partial_forward(self, instance, hidden_state, cell_state):
+    def partial_forward(self, instance, hidden_state, cell_state, prev_cumulative_bag_prediction):
         # Embed the instance
         instance = instance.to(self.device)
         instance_embedding = self.encoder(instance)
         # Pass the embedding through the aggregator with the given states
-        agg_out = self.aggregator.partial_forward(instance_embedding, hidden_state, cell_state)
+        agg_out = self.aggregator.partial_forward(instance_embedding, hidden_state, cell_state,
+                                                  prev_cumulative_bag_prediction)
         # Return instance predictions and new states
         instance_prediction, new_hidden_state, new_cell_state = agg_out
         return instance_prediction, new_hidden_state, new_cell_state
