@@ -3,7 +3,7 @@ from collections import Counter
 
 import scipy.io as sio
 
-from pytorch_mil.data.benchmark.crc.crc_dataset import cell_types, csv_path, orig_path
+from bonfire.data.benchmark.crc.crc_dataset import cell_types, csv_path, orig_path
 
 # TODO move into dataset setup function
 

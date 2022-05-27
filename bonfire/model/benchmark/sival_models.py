@@ -1,9 +1,9 @@
 from overrides import overrides
 
-from pytorch_mil.data.benchmark.sival.sival_dataset import SivalDataset
-from pytorch_mil.model import aggregator as agg
-from pytorch_mil.model import models
-from pytorch_mil.model import modules as mod
+from bonfire.data.benchmark.sival.sival_dataset import SivalDataset
+from bonfire.model import aggregator as agg
+from bonfire.model import models
+from bonfire.model import modules as mod
 
 
 def get_model_clzs():

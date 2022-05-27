@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.tef.tef_dataset import TigerDataset, ElephantDataset, FoxDataset
-from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.tef.tef_dataset import TigerDataset, ElephantDataset, FoxDataset
+from bonfire.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

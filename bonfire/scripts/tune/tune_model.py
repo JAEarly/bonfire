@@ -1,10 +1,10 @@
 import argparse
 
-from pytorch_mil.model.benchmark import get_model_clz
-from pytorch_mil.train.benchmark import get_trainer_clz
-from pytorch_mil.tune.benchmark import get_tuner_clz
-from pytorch_mil.tune.tune_util import setup_study
-from pytorch_mil.util import get_device
+from bonfire.model.benchmark import get_model_clz
+from bonfire.train.benchmark import get_trainer_clz
+from bonfire.tune.benchmark import get_tuner_clz
+from bonfire.tune.tune_util import setup_study
+from bonfire.util import get_device
 
 device = get_device()
 

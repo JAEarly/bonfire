@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
-from pytorch_mil.data.mil_dataset import MilDataset
+from bonfire.data.mil_dataset import MilDataset
 
 # TODO this entire class could do with a bit of a clean up
 

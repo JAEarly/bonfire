@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.musk.musk_dataset import Musk1Dataset, Musk2Dataset
-from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.musk.musk_dataset import Musk1Dataset, Musk2Dataset
+from bonfire.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

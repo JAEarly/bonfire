@@ -1,10 +1,10 @@
 from overrides import overrides
 from torch import nn
 
-from pytorch_mil.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset
-from pytorch_mil.model import aggregator as agg
-from pytorch_mil.model import models
-from pytorch_mil.model import modules as mod
+from bonfire.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset
+from bonfire.model import aggregator as agg
+from bonfire.model import models
+from bonfire.model import modules as mod
 
 
 def get_model_clzs():

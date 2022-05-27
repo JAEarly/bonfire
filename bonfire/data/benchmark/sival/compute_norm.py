@@ -1,6 +1,6 @@
 import torch
 
-from pytorch_mil.data.benchmark.sival.sival_dataset import parse_data_from_file
+from bonfire.data.benchmark.sival.sival_dataset import parse_data_from_file
 
 # TODO move into dataset file
 

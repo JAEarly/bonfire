@@ -4,7 +4,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from pytorch_mil.data.benchmark.sival.sival_dataset import create_full_dataset
+from bonfire.data.benchmark.sival.sival_dataset import create_full_dataset
 
 path = "data/SIVAL/bags"
 outpath = "data/SIVAL/masks"

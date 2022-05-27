@@ -7,8 +7,8 @@ from torch_geometric.data.data import Data
 from torch_geometric.nn import SAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
 
-from pytorch_mil.model import modules as mod
-from pytorch_mil.model import aggregator as agg
+from bonfire.model import modules as mod
+from bonfire.model import aggregator as agg
 
 
 class MultipleInstanceModel(nn.Module, ABC):

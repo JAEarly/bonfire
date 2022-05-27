@@ -1,8 +1,8 @@
 from abc import ABC
 
-from pytorch_mil.model.benchmark import sival_models
-from pytorch_mil.train.benchmark.sival_training import SivalNetTrainer, SivalGNNTrainer
-from pytorch_mil.tune.tune_base import Tuner
+from bonfire.model.benchmark import sival_models
+from bonfire.train.benchmark.sival_training import SivalNetTrainer, SivalGNNTrainer
+from bonfire.tune.tune_base import Tuner
 
 
 def get_tuner_clzs():

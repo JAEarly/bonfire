@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
-from pytorch_mil.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
+from bonfire.train.train_base import MinimiseRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

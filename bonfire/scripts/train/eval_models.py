@@ -1,9 +1,9 @@
 import torch
 
-from pytorch_mil.model.benchmark import get_model_clz
-from pytorch_mil.train import DEFAULT_SEEDS, get_default_save_path
-from pytorch_mil.train.benchmark import get_trainer_clz
-from pytorch_mil.train.metrics import eval_complete, output_results
+from bonfire.model.benchmark import get_model_clz
+from bonfire.train import DEFAULT_SEEDS, get_default_save_path
+from bonfire.train.benchmark import get_trainer_clz
+from bonfire.train.metrics import eval_complete, output_results
 
 
 def run(dataset_name, model_names):

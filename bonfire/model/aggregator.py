@@ -3,7 +3,7 @@ from abc import ABC
 import torch
 from torch import nn
 
-from pytorch_mil.model import modules as mod
+from bonfire.model import modules as mod
 
 
 class Aggregator(nn.Module, ABC):

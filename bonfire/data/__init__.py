@@ -1,4 +1,4 @@
-from pytorch_mil.data.benchmark.sival import sival_dataset
+from bonfire.data.benchmark.sival import sival_dataset
 from torch.utils.data import DataLoader
 
 

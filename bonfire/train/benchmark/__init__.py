@@ -1,4 +1,4 @@
-from pytorch_mil.train.benchmark import crc_training, count_mnist_training, four_mnist_training, musk_training,\
+from bonfire.train.benchmark import crc_training, count_mnist_training, four_mnist_training, musk_training,\
     sival_training, tef_training
 
 

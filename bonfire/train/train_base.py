@@ -11,10 +11,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from pytorch_mil.data.mil_graph_dataset import GraphDataloader
-from pytorch_mil.model import models
-from pytorch_mil.train import metrics, get_default_save_path
-from pytorch_mil.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
+from bonfire.data.mil_graph_dataset import GraphDataloader
+from bonfire.model import models
+from bonfire.train import metrics, get_default_save_path
+from bonfire.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
 
 
 # -- UNUSED --

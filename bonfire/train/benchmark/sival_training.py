@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.sival.sival_dataset import SivalDataset
-from pytorch_mil.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.sival.sival_dataset import SivalDataset
+from bonfire.train.train_base import ClassificationTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

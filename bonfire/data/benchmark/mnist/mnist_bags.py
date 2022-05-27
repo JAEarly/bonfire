@@ -5,7 +5,7 @@ from torch.utils.data import random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from pytorch_mil.data.mil_dataset import MilDataset
+from bonfire.data.mil_dataset import MilDataset
 
 
 def load_mnist(train):

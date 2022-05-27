@@ -1,4 +1,4 @@
-from pytorch_mil.model.benchmark import crc_models, count_mnist_models, four_mnist_models, musk_models, sival_models, \
+from bonfire.model.benchmark import crc_models, count_mnist_models, four_mnist_models, musk_models, sival_models, \
     tef_models
 
 

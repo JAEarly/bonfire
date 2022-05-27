@@ -1,7 +1,7 @@
 import optuna.visualization as viz
 from optuna.trial import TrialState
 
-from pytorch_mil.tune.tune_util import load_study, generate_figure
+from bonfire.tune.tune_util import load_study, generate_figure
 import numpy as np
 
 

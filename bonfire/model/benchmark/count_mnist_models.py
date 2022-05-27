@@ -1,9 +1,9 @@
 from overrides import overrides
 
-from pytorch_mil.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
-from pytorch_mil.model import aggregator as agg
-from pytorch_mil.model import models
-from pytorch_mil.model.benchmark.four_mnist_models import MnistEncoder
+from bonfire.data.benchmark.mnist.mnist_bags import CountMnistBagsDataset
+from bonfire.model import aggregator as agg
+from bonfire.model import models
+from bonfire.model.benchmark.four_mnist_models import MnistEncoder
 
 
 def get_model_clzs():

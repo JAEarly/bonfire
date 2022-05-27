@@ -1,8 +1,8 @@
 from abc import ABC
 
-from pytorch_mil.model.benchmark import crc_models
-from pytorch_mil.train.benchmark.crc_training import CrcNetTrainer, CrcGNNTrainer
-from pytorch_mil.tune.tune_base import Tuner
+from bonfire.model.benchmark import crc_models
+from bonfire.train.benchmark.crc_training import CrcNetTrainer, CrcGNNTrainer
+from bonfire.tune.tune_base import Tuner
 
 
 def get_tuner_clzs():

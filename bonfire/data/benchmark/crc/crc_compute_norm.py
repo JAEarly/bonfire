@@ -3,7 +3,7 @@ from PIL import Image
 from torchvision import transforms
 from tqdm import tqdm
 
-from pytorch_mil.data.benchmark.crc.crc_dataset import load_crc_bags
+from bonfire.data.benchmark.crc.crc_dataset import load_crc_bags
 
 # TODO move into crc MIL dataset implementation
 

@@ -8,7 +8,7 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 from torchvision import transforms
 
-from pytorch_mil.data.mil_dataset import MilDataset
+from bonfire.data.mil_dataset import MilDataset
 
 cell_types = ['others', 'inflammatory', 'fibroblast', 'epithelial']
 binary_clz_names = ['non-epithelial', 'epithelial']

@@ -1,9 +1,9 @@
 import argparse
 
-from pytorch_mil.model.benchmark import get_model_clz
-from pytorch_mil.train import DEFAULT_SEEDS
-from pytorch_mil.train.benchmark import get_trainer_clz
-from pytorch_mil.util import get_device
+from bonfire.model.benchmark import get_model_clz
+from bonfire.train import DEFAULT_SEEDS
+from bonfire.train.benchmark import get_trainer_clz
+from bonfire.util import get_device
 
 device = get_device()
 
