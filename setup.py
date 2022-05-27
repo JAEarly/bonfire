@@ -6,12 +6,12 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 setuptools.setup(
-    name="pytorch-mil",
+    name="pytorch-bonfire",
     version="0.1.0",
-    py_modules=['pytorch-mil'],
+    py_modules=['pytorch-bonfire'],
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/JAEarly/pytorch-mil",
+    url="https://github.com/JAEarly/Bonfire",
     author="Joseph Early",
     author_email="joseph.early.ai@gmail.com",
     license="MIT",
@@ -20,5 +20,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
     ],
-    packages=setuptools.find_packages(include=['pytorch_mil']),
+    packages=setuptools.find_packages(include=['bonfire']),
 )
