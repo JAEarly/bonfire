@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.dgr.dgr_dataset import DGRDataset
-from pytorch_mil.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.dgr.dgr_dataset import DGRDataset
+from bonfire.train.train_base import RegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

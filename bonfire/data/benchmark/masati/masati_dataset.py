@@ -13,8 +13,8 @@ from torch import nn
 from torchvision import transforms
 from tqdm import tqdm
 
-from pytorch_mil.data.mil_dataset import MilDataset
-from pytorch_mil.train.metrics import RegressionMetric
+from bonfire.data.mil_dataset import MilDataset
+from bonfire.train.metrics import RegressionMetric
 
 
 def _setup_loc_df():

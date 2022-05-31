@@ -1,7 +1,7 @@
 from abc import ABC
 
-from pytorch_mil.data.benchmark.masati.masati_dataset import MasatiDataset
-from pytorch_mil.train.train_base import CountRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
+from bonfire.data.benchmark.masati.masati_dataset import MasatiDataset
+from bonfire.train.train_base import CountRegressionTrainer, NetTrainerMixin, GNNTrainerMixin
 
 
 def get_trainer_clzs():

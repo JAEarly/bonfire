@@ -1,12 +1,13 @@
 import argparse
 
-from pytorch_mil.model.benchmark import get_model_clz
-from pytorch_mil.scripts.train.train_model import DATASET_NAMES, MODEL_NAMES
-from pytorch_mil.train import DEFAULT_SEEDS, get_default_save_path
-from pytorch_mil.train.benchmark import get_trainer_clz
-from pytorch_mil.train.metrics import eval_complete, output_results
-from pytorch_mil.util import get_device
 import numpy as np
+
+from bonfire.model.benchmark import get_model_clz
+from bonfire.scripts.train.train_model import DATASET_NAMES, MODEL_NAMES
+from bonfire.train import DEFAULT_SEEDS, get_default_save_path
+from bonfire.train.benchmark import get_trainer_clz
+from bonfire.train.metrics import eval_complete, output_results
+from bonfire.util import get_device
 
 device = get_device()
 
