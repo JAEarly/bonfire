@@ -28,22 +28,9 @@ class DgrEncoder(nn.Module):
         return x
 
 
-def clamp_predictions(bag_predictions, instance_predictions):
-    # TODO Clamping might mean that the sum of the instances predictions no longer equals the bag prediction
-    clamped_bag_predictions = torch.empty_like(bag_predictions)
-    clamped_instance_predictions = []
-    for bag_idx in range(len(bag_predictions)):
-        clamped_bag_predictions[bag_idx, :] = torch.clamp(bag_predictions[bag_idx], 0, 1)
-        if instance_predictions is not None:
-            clamped_instance_predictions.append(torch.clamp(instance_predictions[bag_idx], 0, 1))
-        else:
-            clamped_instance_predictions.append(None)
-    return clamped_bag_predictions, clamped_instance_predictions
-
-
 class DgrInstanceSpaceNN(models.InstanceSpaceNN):
 
-    def __init__(self, device, d_enc=64, ds_enc_hid=(64,), ds_agg_hid=(64,), dropout=0.25, agg_func_name='sum'):
+    def __init__(self, device, d_enc=64, ds_enc_hid=(64,), ds_agg_hid=(64,), dropout=0.1, agg_func_name='sum'):
         encoder = DgrEncoder(ds_enc_hid, d_enc, dropout)
         aggregator = agg.InstanceAggregator(d_enc, ds_agg_hid, DGRDataset.n_classes, dropout, agg_func_name)
         super().__init__(device, DGRDataset.n_classes, DGRDataset.n_expected_dims, encoder, aggregator)
@@ -54,14 +41,6 @@ class DgrInstanceSpaceNN(models.InstanceSpaceNN):
             'lr': 5e-4,
             'weight_decay': 1e-4,
         }
-
-    @overrides
-    def _internal_forward(self, bags):
-        # Clamp outputs to between 0 and 1 if not training
-        bag_predictions, instance_predictions = super()._internal_forward(bags)
-        if not self.training:
-            bag_predictions, instance_predictions = clamp_predictions(bag_predictions, instance_predictions)
-        return bag_predictions, instance_predictions
 
 
 class DgrEmbeddingSpaceNN(models.EmbeddingSpaceNN):
@@ -77,11 +56,3 @@ class DgrEmbeddingSpaceNN(models.EmbeddingSpaceNN):
             'lr': 5e-4,
             'weight_decay': 1e-4,
         }
-
-    @overrides
-    def _internal_forward(self, bags):
-        # Clamp outputs to between 0 and 1 if not training
-        bag_predictions, instance_predictions = super()._internal_forward(bags)
-        if not self.training:
-            bag_predictions, instance_predictions = clamp_predictions(bag_predictions, instance_predictions)
-        return bag_predictions, instance_predictions
