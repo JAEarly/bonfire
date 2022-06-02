@@ -24,12 +24,16 @@ class Aggregator(nn.Module, ABC):
             def max_agg(x):
                 if len(x.shape) == 1:  # n_instances
                     return torch.max(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
+                    return torch.max(x, dim=0)[0]
                 raise NotImplementedError('Check shape!')
             return max_agg
         if agg_func_name == 'sum':
             def sum_agg(x):
                 if len(x.shape) == 1:   # n_instances
                     return torch.sum(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
+                    return torch.sum(x, dim=0)
                 raise NotImplementedError('Check shape!')
             return sum_agg
         raise ValueError('Invalid aggregation function name for Instance Aggregator: {:s}'.format(agg_func_name))

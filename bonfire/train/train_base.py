@@ -132,7 +132,9 @@ class Trainer(ABC):
 
         epoch_train_metrics = self.metric_clz.from_train_loss(epoch_train_loss)
         # epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
-        epoch_val_metrics = metrics.eval_model(model, val_dataset, self.metric_clz)
+        epoch_val_metrics = None
+        if val_dataset is not None:
+            epoch_val_metrics = metrics.eval_model(model, val_dataset, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
@@ -150,55 +152,61 @@ class Trainer(ABC):
 
         n_epochs = self.get_train_param('n_epochs')
         patience = self.get_train_param('patience')
+        patience_interval = self.get_train_param('patience_interval')
 
         train_metrics = []
         val_metrics = []
 
         best_model = None
+        patience_tracker = 0
 
         if self.metric_clz.optimise_direction == 'maximize':
             best_key_metric = float("-inf")
-        elif self.metric_clz.optimise_direction == 'minimise':
+        elif self.metric_clz.optimise_direction == 'minimize':
             best_key_metric = float("inf")
         else:
             raise ValueError('Invalid optimise direction {:}'.format(self.metric_clz.optimise_direction))
 
-        with tqdm(total=n_epochs, desc='Training model', leave=False) as t:
-            for epoch in range(n_epochs):
-                # Train model for an epoch
-                epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader, val_dataset)
-                epoch_train_metrics, epoch_val_metrics = epoch_outputs
+        print('Starting model training')
+        if patience is not None:
+            print('  Using patience of {:d} with interval {:d} (num patience epochs = {:d})'
+                  .format(patience, patience_interval, patience * patience_interval))
+        for epoch in range(n_epochs):
+            print('Epoch {:d}/{:d}'.format(epoch + 1, n_epochs))
+            # Train model for an epoch
+            epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader,
+                                             val_dataset if epoch % patience_interval == 0 else None)
+            epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
-                # Early stopping
-                if patience is not None:
-                    new_key_metric = epoch_val_metrics.key_metric()
-                    if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
-                            self.metric_clz.optimise_direction == 'minimise' and new_key_metric < best_key_metric:
-                        best_key_metric = new_key_metric
-                        best_model = copy.deepcopy(model)
-                        patience_tracker = 0
-                    else:
-                        patience_tracker += 1
-                        if patience_tracker == patience:
-                            early_stopped = True
-                            break
-                else:
+            # Early stopping
+            if patience is not None and epoch_val_metrics is not None:
+                new_key_metric = epoch_val_metrics.key_metric()
+                if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
+                        self.metric_clz.optimise_direction == 'minimize' and new_key_metric < best_key_metric:
+                    best_key_metric = new_key_metric
                     best_model = copy.deepcopy(model)
+                    patience_tracker = 0
+                else:
+                    patience_tracker += 1
+                    if patience_tracker == patience:
+                        early_stopped = True
+                        break
+            else:
+                best_model = copy.deepcopy(model)
 
-                # Update progress bar
-                train_metrics.append(epoch_train_metrics)
-                val_metrics.append(epoch_val_metrics)
-                t.set_postfix(train_metrics=epoch_train_metrics.short_string_repr(),
-                              val_metrics=epoch_val_metrics.short_string_repr())
-                t.update()
+            # Update progress
+            train_metrics.append(epoch_train_metrics)
+            val_metrics.append(epoch_val_metrics)
+            print(' Train: {:s}'.format(epoch_train_metrics.short_string_repr()))
+            print('   Val: {:s}'.format(epoch_val_metrics.short_string_repr() if epoch_val_metrics else 'None'))
 
-                # Update Optuna
-                if trial is not None:
-                    trial.report(epoch_val_metrics.key_metric(), epoch)
+            # Update Optuna
+            if trial is not None and epoch_val_metrics is not None:
+                trial.report(epoch_val_metrics.key_metric(), epoch)
 
-                    # Handle pruning based on the intermediate value.
-                    if trial.should_prune():
-                        raise optuna.exceptions.TrialPruned()
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
 
         return best_model, train_metrics, val_metrics, early_stopped
 
@@ -302,14 +310,15 @@ class RegressionTrainer(Trainer, ABC):
         return RegressionMetric.criterion()
 
     def plot_training(self, train_metrics, val_metrics):
-        x_range = range(len(train_metrics))
+        x_train_range = range(len(train_metrics))
         train_losses = [m.mse_loss for m in train_metrics]
-        val_losses = [m.mse_loss for m in val_metrics]
+        x_val_range = [idx for idx in range(len(val_metrics)) if val_metrics[idx] is not None]
+        val_losses = [val_metrics[idx].mse_loss for idx in x_val_range]
 
         fig, axis = plt.subplots(nrows=1, ncols=1, figsize=(7, 5))
-        axis.plot(x_range, train_losses, label='Train')
-        axis.plot(x_range, val_losses, label='Validation')
-        axis.set_xlim(0, len(x_range))
+        axis.plot(x_train_range, train_losses, label='Train')
+        axis.plot(x_val_range, val_losses, label='Validation')
+        axis.set_xlim(0, len(x_train_range))
         axis.set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
         axis.set_xlabel('Epoch')
         axis.set_ylabel('MSE Loss')

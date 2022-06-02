@@ -43,7 +43,7 @@ def run_training():
     print('  Model Class: {:}'.format(model_clz))
     print('  Trainer Class: {:}'.format(trainer_clz))
 
-    patience = None if patience == 'None' else patience
+    patience = None if patience == 'None' else int(patience)
     assert patience is None or type(patience) is int
     train_params = {
         'n_epochs': n_epochs,

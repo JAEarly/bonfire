@@ -97,7 +97,7 @@ class ClassificationMetric(Metric):
 
 class RegressionMetric(Metric):
 
-    optimise_direction = 'minimise'
+    optimise_direction = 'minimize'
 
     def __init__(self, mse_loss, mae_loss):
         self.mse_loss = mse_loss
@@ -122,7 +122,7 @@ class RegressionMetric(Metric):
 
     def short_string_repr(self):
         return "{{MSE Loss: {:.3f}; ".format(self.mse_loss) + \
-               ("MAE Loss: {:.3f}}}".format(self.mae_loss) if self.mae_loss is not None else "MAE Loss: None")
+               ("MAE Loss: {:.3f}}}".format(self.mae_loss) if self.mae_loss is not None else "MAE Loss: None}")
 
     def out(self):
         print('MSE Loss: {:.3f}'.format(self.mse_loss))

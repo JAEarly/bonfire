@@ -45,7 +45,7 @@ class DGRDataset(MilDataset):
 
     d_in = 1200
     n_expected_dims = 4  # i x c x h x w
-    n_classes = 1
+    n_classes = 2  # multi-regression with two outputs (urban land, agriculture land)
 
     def __init__(self, bags, targets, bags_metadata):
         super().__init__(bags, targets, None, bags_metadata)
@@ -91,7 +91,7 @@ class DGRDataset(MilDataset):
         coverage_df = DGRDataset.load_per_class_coverage()
         complete_df = pd.merge(patches_df, coverage_df, on='image_id')
         bags = [s.split(",") for s in complete_df['patch_paths'].tolist()]
-        targets = complete_df['agriculture_land'].tolist()
+        targets = complete_df[['urban_land', 'agriculture_land']].to_numpy()
         bags_metadata = [{'id': id_} for id_ in complete_df['image_id'].tolist()]
         return bags, targets, bags_metadata
 
@@ -138,8 +138,6 @@ class DGRDataset(MilDataset):
 
     @staticmethod
     def generate_per_class_coverage():
-        # TODO save this dist to a file (probably use pandas df rather than dict)
-
         cover_dist_df = METADATA_DF[['image_id']].copy()
         for name in CLASS_DICT_DF['name']:
             cover_dist_df[name] = pd.Series(dtype=float)
@@ -172,6 +170,7 @@ class DGRDataset(MilDataset):
             axes[target].hist(dist, bins=25, range=(0, 1))
             axes[target].set_xlabel('Coverage')
             axes[target].set_ylabel('Density')
+            axes[target].set_ylim(0, 1000)
         plt.tight_layout()
         fig_path = "data/DGR/class_coverage_histograms.png"
         fig.savefig(fig_path, format='png', dpi=300)
@@ -259,3 +258,7 @@ class DGRDataset(MilDataset):
         arrs_std = torch.std(arrs, dim=0)
         print(arrs_mean)
         print(arrs_std)
+
+
+if __name__ == "__main__":
+    DGRDataset.extract_grid_patches()

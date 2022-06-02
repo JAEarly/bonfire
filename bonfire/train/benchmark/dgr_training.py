@@ -24,7 +24,8 @@ class DgrTrainer(RegressionTrainer, ABC):
             'lr': 1e-3,
             'weight_decay': 1e-4,
             'n_epochs': 100,
-            'patience': 10,
+            'patience': 2,
+            'patience_interval': 4,
         }
 
 
