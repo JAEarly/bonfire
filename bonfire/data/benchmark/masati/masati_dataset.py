@@ -9,7 +9,6 @@ import torch
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition, mark_inset
 from sklearn.model_selection import train_test_split
-from torch import nn
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -104,11 +103,11 @@ label_dirs = ['coast_ship_labels', 'multi_labels', 'ship_labels']
 basic_transform = transforms.Compose([transforms.ToTensor(),
                                       transforms.Normalize((0.3101, 0.3183, 0.2397), (0.1256, 0.1346, 0.1555))])
 
-SHIP_LOC_DF = _setup_loc_df()
-IMG_LABEL_DF = _setup_img_df(SHIP_LOC_DF)
-
 
 class MasatiDataset(MilDataset):
+
+    _ship_loc_df = None
+    _img_label_df = None
 
     d_in = 1200
     n_expected_dims = 4  # i x c x h x w
@@ -117,6 +116,20 @@ class MasatiDataset(MilDataset):
     def __init__(self, bags, targets, bags_metadata):
         super().__init__(bags, targets, None, bags_metadata)
         self.transform = basic_transform
+
+    @staticmethod
+    @property
+    def ship_loc_df():
+        if MasatiDataset._ship_loc_df is None:
+            MasatiDataset._ship_loc_df = _setup_loc_df()
+        return MasatiDataset._ship_loc_df
+
+    @staticmethod
+    @property
+    def img_label_df():
+        if MasatiDataset._img_label_df is None:
+            MasatiDataset._img_label_df = _setup_img_df(MasatiDataset.ship_loc_df)
+        return MasatiDataset._img_label_df
 
     @classmethod
     def create_datasets(cls, random_state=12, grid_size=32, patch_size=28):
@@ -155,7 +168,7 @@ class MasatiDataset(MilDataset):
     @staticmethod
     def load_masati_bags(grid_size=32, patch_size=28, ship_count_limit=15):
         patches_df = pd.read_csv("data/MASATI/patch_{:d}_{:d}_data.csv".format(grid_size, patch_size))
-        complete_df = pd.merge(patches_df, IMG_LABEL_DF, on='image_id')
+        complete_df = pd.merge(patches_df, MasatiDataset.img_label_df, on='image_id')
         bags = [s.split(",") for s in complete_df['patch_paths'].tolist()]
         targets = complete_df['ship_count'].tolist()
         bags_metadata = [{'id': id_} for id_ in complete_df['image_id'].tolist()]
@@ -181,12 +194,12 @@ class MasatiDataset(MilDataset):
         if not os.path.exists(patch_dir):
             os.makedirs(patch_dir)
 
-        patches_df = IMG_LABEL_DF[['image_id']].copy()
+        patches_df = MasatiDataset.img_label_df[['image_id']].copy()
         patches_df['patch_paths'] = ""
 
-        for i in tqdm(range(len(IMG_LABEL_DF)), desc='Extracting patches'):
-            image_id = IMG_LABEL_DF['image_id'][i]
-            img_path = IMG_LABEL_DF['image_path'][i]
+        for i in tqdm(range(len(MasatiDataset.img_label_df)), desc='Extracting patches'):
+            image_id = MasatiDataset.img_label_df['image_id'][i]
+            img_path = MasatiDataset.img_label_df['image_path'][i]
             img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
 
             n_x = int(img.shape[0]/grid_size)
@@ -246,7 +259,7 @@ class MasatiDataset(MilDataset):
 
     @staticmethod
     def plot_ship_count_data():
-        counts = IMG_LABEL_DF['ship_count']
+        counts = MasatiDataset.img_label_df['ship_count']
         counts = np.asarray(counts)
         lower_bound = 0
         mid_split = 5
