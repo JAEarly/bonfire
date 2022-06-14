@@ -7,14 +7,13 @@ import numpy as np
 import optuna
 import torch
 from matplotlib import pyplot as plt
-from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from bonfire.data.mil_graph_dataset import GraphDataloader
 from bonfire.model import models
 from bonfire.train import metrics, get_default_save_path
-from bonfire.train.metrics import ClassificationMetric, MaximizeRegressionMetric, MinimiseRegressionMetric
+from bonfire.train.metrics import ClassificationMetric, RegressionMetric, CountRegressionMetric
 
 
 # -- UNUSED --
@@ -82,16 +81,9 @@ class Trainer(ABC):
             return self.dataset_clz.create_datasets(seed=seed, **self.dataset_params)
         return self.dataset_clz.create_datasets(seed=seed)
 
-    def create_dataloader(self, dataset, batch_size):
-        raise NotImplementedError("Base trainer class does not provide a create_dataloader implementation. "
+    def create_dataloader(self, dataset, shuffle, n_workers):
+        raise NotImplementedError("Base trainer class does not provide a create_train_dataloader implementation. "
                                   "You need to use a mixin: NetTrainerMixin, GNNTrainerMixin")
-
-    def create_dataloaders(self, seed, batch_size=1):
-        train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
-        train_dataloader = self.create_dataloader(train_dataset, batch_size)
-        val_dataloader = self.create_dataloader(val_dataset, batch_size)
-        test_dataloader = self.create_dataloader(test_dataset, batch_size)
-        return train_dataloader, val_dataloader, test_dataloader
 
     def create_model(self):
         if self.model_params is not None:
@@ -113,11 +105,11 @@ class Trainer(ABC):
 
     def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
-        # epoch_train_loss = 0
+        epoch_train_loss = 0
         # epoch_prediction_loss = 0
         # epoch_mi_loss = 0
         # epoch_mi_sub_losses = torch.zeros(3)
-        for data in train_dataloader:
+        for data in tqdm(train_dataloader, desc='Epoch Progress', leave=False):
             bags, targets = data[0], data[1].to(self.device)
             optimizer.zero_grad()
             outputs = model(bags)
@@ -127,18 +119,22 @@ class Trainer(ABC):
             # loss = prediction_loss + mi_loss
             loss.backward()
             optimizer.step()
-            # epoch_train_loss += loss.item()
+            epoch_train_loss += loss.item()
             # epoch_prediction_loss += prediction_loss.item()
             # epoch_mi_loss += mi_loss.item()
             # epoch_mi_sub_losses += mi_sub_losses.detach()
-        # epoch_train_loss /= len(train_dataloader)
+
+        epoch_train_loss /= len(train_dataloader)
         # epoch_prediction_loss /= len(train_dataloader)
 
         # epoch_mi_loss /= len(train_dataloader)
         # epoch_mi_sub_losses /= len(train_dataloader)
 
-        epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
-        epoch_val_metrics = metrics.eval_model(model, val_dataloader.dataset, criterion, self.metric_clz)
+        epoch_train_metrics = self.metric_clz.from_train_loss(epoch_train_loss)
+        # epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
+        epoch_val_metrics = None
+        if val_dataloader is not None:
+            epoch_val_metrics = metrics.eval_model(model, val_dataloader, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
@@ -156,70 +152,78 @@ class Trainer(ABC):
 
         n_epochs = self.get_train_param('n_epochs')
         patience = self.get_train_param('patience')
+        patience_interval = self.get_train_param('patience_interval')
 
         train_metrics = []
         val_metrics = []
 
         best_model = None
+        patience_tracker = 0
 
         if self.metric_clz.optimise_direction == 'maximize':
             best_key_metric = float("-inf")
-        elif self.metric_clz.optimise_direction == 'minimise':
+        elif self.metric_clz.optimise_direction == 'minimize':
             best_key_metric = float("inf")
         else:
             raise ValueError('Invalid optimise direction {:}'.format(self.metric_clz.optimise_direction))
 
-        with tqdm(total=n_epochs, desc='Training model', leave=False) as t:
-            for epoch in range(n_epochs):
-                # Train model for an epoch
-                epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader, val_dataloader)
-                epoch_train_metrics, epoch_val_metrics = epoch_outputs
+        print('Starting model training')
+        if patience is not None:
+            print('  Using patience of {:d} with interval {:d} (num patience epochs = {:d})'
+                  .format(patience, patience_interval, patience * patience_interval))
+        for epoch in range(n_epochs):
+            print('Epoch {:d}/{:d}'.format(epoch + 1, n_epochs))
+            # Train model for an epoch
+            epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader,
+                                             val_dataloader if epoch % patience_interval == 0 else None)
+            epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
-                # Early stopping
-                if patience is not None:
-                    new_key_metric = epoch_val_metrics.key_metric()
-                    if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
-                            self.metric_clz.optimise_direction == 'minimise' and new_key_metric < best_key_metric:
-                        best_key_metric = new_key_metric
-                        best_model = copy.deepcopy(model)
-                        patience_tracker = 0
-                    else:
-                        patience_tracker += 1
-                        if patience_tracker == patience:
-                            early_stopped = True
-                            break
-                else:
+            # Early stopping
+            if patience is not None and epoch_val_metrics is not None:
+                new_key_metric = epoch_val_metrics.key_metric()
+                if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
+                        self.metric_clz.optimise_direction == 'minimize' and new_key_metric < best_key_metric:
+                    best_key_metric = new_key_metric
                     best_model = copy.deepcopy(model)
+                    patience_tracker = 0
+                else:
+                    patience_tracker += 1
+                    if patience_tracker == patience:
+                        early_stopped = True
+                        break
+            else:
+                best_model = copy.deepcopy(model)
 
-                # Update progress bar
-                train_metrics.append(epoch_train_metrics)
-                val_metrics.append(epoch_val_metrics)
-                t.set_postfix(train_metrics=epoch_train_metrics.short_string_repr(),
-                              val_metrics=epoch_val_metrics.short_string_repr())
-                t.update()
+            # Update progress
+            train_metrics.append(epoch_train_metrics)
+            val_metrics.append(epoch_val_metrics)
+            print(' Train: {:s}'.format(epoch_train_metrics.short_string_repr()))
+            print('   Val: {:s}'.format(epoch_val_metrics.short_string_repr() if epoch_val_metrics else 'None'))
 
-                # Update Optuna
-                if trial is not None:
-                    trial.report(epoch_val_metrics.key_metric(), epoch)
+            # Update Optuna
+            if trial is not None and epoch_val_metrics is not None:
+                trial.report(epoch_val_metrics.key_metric(), epoch)
 
-                    # Handle pruning based on the intermediate value.
-                    if trial.should_prune():
-                        raise optuna.exceptions.TrialPruned()
+                # Handle pruning based on the intermediate value.
+                if trial.should_prune():
+                    raise optuna.exceptions.TrialPruned()
 
         return best_model, train_metrics, val_metrics, early_stopped
 
     def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
-        train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(seed, batch_size=1)
+        train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
+        train_dataloader = self.create_dataloader(train_dataset, True, 2)
+        val_dataloader = self.create_dataloader(val_dataset, False, 2)
+        test_dataloader = self.create_dataloader(test_dataset, False, 2)
         model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
         best_model, train_metrics, val_metrics, early_stopped = train_outputs
         if hasattr(best_model, 'flatten_parameters'):
             best_model.flatten_parameters()
-        train_results, val_results, test_results = metrics.eval_complete(
-            best_model, train_dataloader.dataset,  val_dataloader.dataset, test_dataloader.dataset,
-            self.get_criterion(), self.metric_clz, verbose=verbose)
-
+        train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
+                                                                         test_dataloader, self.metric_clz,
+                                                                         verbose=verbose)
         if save_model:
             path, save_dir = self.get_model_save_path(best_model, None)
             if verbose:
@@ -243,15 +247,16 @@ class Trainer(ABC):
             print('Repeat {:d}/{:d}'.format(i + 1, n_repeats))
             repeat_seed = np.random.randint(low=1, high=1000) if seeds is None else seeds[i]
             print('Seed: {:d}'.format(repeat_seed))
-            train_dataloader, val_dataloader, test_dataloader = self.create_dataloaders(repeat_seed, batch_size=1)
+            train_dataset, val_dataset, test_dataset = self.load_datasets(seed=repeat_seed)
+            train_dataloader = self.create_train_dataloader(train_dataset, batch_size=1)
             model = self.create_model()
-            best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataloader)
+            best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataset)
             del model
+
             if hasattr(best_model, 'flatten_parameters'):
                 best_model.flatten_parameters()
-            final_results = metrics.eval_complete(best_model, train_dataloader.dataset, val_dataloader.dataset,
-                                                  test_dataloader.dataset, self.get_criterion(), self.metric_clz,
-                                                  verbose=False)
+            final_results = metrics.eval_complete(best_model, train_dataset, val_dataset, test_dataset,
+                                                  self.metric_clz, verbose=False)
             results.append(final_results)
 
             # Save model
@@ -274,7 +279,7 @@ class ClassificationTrainer(Trainer, ABC):
     metric_clz = ClassificationMetric
 
     def get_criterion(self):
-        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
+        return ClassificationMetric.criterion()
 
     def plot_training(self, train_metrics, val_metrics):
         x_range = range(len(train_metrics))
@@ -300,30 +305,23 @@ class ClassificationTrainer(Trainer, ABC):
         plt.show()
 
 
-class MaximizeRegressionTrainer(Trainer, ABC):
+class RegressionTrainer(Trainer, ABC):
 
-    metric_clz = MaximizeRegressionMetric
-
-    def get_criterion(self):
-        raise NotImplementedError
-
-
-class MinimiseRegressionTrainer(Trainer, ABC):
-
-    metric_clz = MinimiseRegressionMetric
+    metric_clz = RegressionMetric
 
     def get_criterion(self):
-        return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())
+        return RegressionMetric.criterion()
 
     def plot_training(self, train_metrics, val_metrics):
-        x_range = range(len(train_metrics))
-        train_losses = [m.loss for m in train_metrics]
-        val_losses = [m.loss for m in val_metrics]
+        x_train_range = range(len(train_metrics))
+        train_losses = [m.mse_loss for m in train_metrics]
+        x_val_range = [idx for idx in range(len(val_metrics)) if val_metrics[idx] is not None]
+        val_losses = [val_metrics[idx].mse_loss for idx in x_val_range]
 
         fig, axis = plt.subplots(nrows=1, ncols=1, figsize=(7, 5))
-        axis.plot(x_range, train_losses, label='Train')
-        axis.plot(x_range, val_losses, label='Validation')
-        axis.set_xlim(0, len(x_range))
+        axis.plot(x_train_range, train_losses, label='Train')
+        axis.plot(x_val_range, val_losses, label='Validation')
+        axis.set_xlim(0, len(x_train_range))
         axis.set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
         axis.set_xlabel('Epoch')
         axis.set_ylabel('MSE Loss')
@@ -331,21 +329,31 @@ class MinimiseRegressionTrainer(Trainer, ABC):
         plt.show()
 
 
+class CountRegressionTrainer(RegressionTrainer, ABC):
+
+    metric_clz = CountRegressionMetric
+
+    def get_criterion(self):
+        return CountRegressionMetric.criterion()
+
+
 class NetTrainerMixin:
 
     base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
 
-    def create_dataloader(self, dataset, batch_size):
+    def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        return DataLoader(dataset, shuffle=True, batch_size=batch_size)
+        # TODO not using batch size
+        return DataLoader(dataset, shuffle=shuffle, batch_size=1, num_workers=n_workers)
 
 
 class GNNTrainerMixin:
 
     base_models = [models.ClusterGNN]
 
-    def create_dataloader(self, dataset, batch_size):
+    def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        return GraphDataloader(dataset)
+        # TODO batch_size and n_workers for Graph data loader
+        return GraphDataloader(dataset, shuffle)

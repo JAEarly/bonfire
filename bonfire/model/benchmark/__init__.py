@@ -1,5 +1,5 @@
-from bonfire.model.benchmark import crc_models, count_mnist_models, four_mnist_models, musk_models, sival_models, \
-    tef_models
+from bonfire.model.benchmark import crc_models, count_mnist_models, dgr_models, four_mnist_models, masati_models,\
+    musk_models, sival_models, tef_models
 
 
 def get_model_clz(dataset_name, model_name):
@@ -7,8 +7,12 @@ def get_model_clz(dataset_name, model_name):
         model_clzs = crc_models.get_model_clzs()
     elif dataset_name == 'count_mnist':
         model_clzs = count_mnist_models.get_model_clzs()
+    elif dataset_name == 'dgr':
+        model_clzs = dgr_models.get_model_clzs()
     elif dataset_name == 'four_mnist':
         model_clzs = four_mnist_models.get_model_clzs()
+    elif dataset_name == 'masati':
+        model_clzs = masati_models.get_model_clzs()
     elif dataset_name == 'musk':
         model_clzs = musk_models.get_model_clzs()
     elif dataset_name == 'sival':

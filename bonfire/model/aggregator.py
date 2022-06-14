@@ -15,15 +15,28 @@ class Aggregator(nn.Module, ABC):
     def _parse_agg_method(agg_func_name):
         # TODO ensure these are the correct shape
         if agg_func_name == 'mean':
-            raise NotImplementedError('Check shape!')
-            # return lambda x: torch.mean(x, dim=0)
+            def mean_agg(x):
+                if len(x.shape) == 1:  # n_instances
+                    return torch.mean(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
+                    return torch.mean(x, dim=0)
+                raise NotImplementedError('Check shape!')
+            return mean_agg
         if agg_func_name == 'max':
-            raise NotImplementedError('Check shape!')
-            # return lambda x: torch.max(x, dim=0)[0]
+            def max_agg(x):
+                if len(x.shape) == 1:  # n_instances
+                    return torch.max(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
+                    return torch.max(x, dim=0)[0]
+                raise NotImplementedError('Check shape!')
+            return max_agg
         if agg_func_name == 'sum':
             def sum_agg(x):
-                assert len(x.shape) == 1   # n_instances
-                return torch.sum(x)
+                if len(x.shape) == 1:   # n_instances
+                    return torch.sum(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
+                    return torch.sum(x, dim=0)
+                raise NotImplementedError('Check shape!')
             return sum_agg
         raise ValueError('Invalid aggregation function name for Instance Aggregator: {:s}'.format(agg_func_name))
 

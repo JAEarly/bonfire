@@ -6,8 +6,9 @@ class Tuner(ABC):
 
     model_clz = NotImplemented
 
-    def __init__(self, device):
+    def __init__(self, device, dataset_name):
         self.device = device
+        self.dataset_name = dataset_name
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -41,6 +42,6 @@ class Tuner(ABC):
         trainer = self.create_trainer(train_params, model_params)
         model, _, _, test_results, early_stopped = trainer.train_single(save_model=False, show_plot=False,
                                                                         verbose=False, trial=trial)
-        test_acc = test_results[0]
+        test_metric = test_results.key_metric()
         trial.set_user_attr('early_stopped', early_stopped)
-        return test_acc
+        return test_metric

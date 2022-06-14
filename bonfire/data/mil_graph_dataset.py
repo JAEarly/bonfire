@@ -7,13 +7,14 @@ from torch_geometric.utils import dense_to_sparse
 
 class GraphDataloader:
 
-    def __init__(self, mil_dataset, eta=None):
-        self.mil_dataset = mil_dataset
+    def __init__(self, dataset, shuffle, eta=None):
+        self.dataset = dataset
+        self.shuffle = shuffle
         self.edge_indices = self.setup_edges(eta=eta)
 
     def setup_edges(self, eta=None):
         edge_indices = []
-        for bag in self.mil_dataset.bags:
+        for bag in self.dataset.bags:
             # If eta not set, create fully connected graph
             if eta is None:
                 edge_index = torch.ones((len(bag), len(bag)))
@@ -30,19 +31,20 @@ class GraphDataloader:
 
     def __iter__(self):
         self.idx = 0
-        self.order = list(range(len(self.mil_dataset)))
-        random.shuffle(self.order)
+        self.order = list(range(len(self.dataset)))
+        if self.shuffle:
+            random.shuffle(self.order)
         return self
 
     def __next__(self):
-        if self.idx >= len(self.mil_dataset):
+        if self.idx >= len(self.dataset):
             raise StopIteration
         o_idx = self.order[self.idx]
         edge_index = self.edge_indices[o_idx]
-        instances, target = self.mil_dataset[o_idx]
+        instances, target, _ = self.dataset[o_idx]
         data = Data(x=instances, edge_index=edge_index)
         self.idx += 1
         return [data], target.unsqueeze(0)
 
     def __len__(self):
-        return len(self.mil_dataset)
+        return len(self.dataset)

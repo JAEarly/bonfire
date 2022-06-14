@@ -7,7 +7,7 @@ from bonfire.util import get_device
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'count_mnist', 'four_mnist', 'musk', 'sival', 'tiger', 'elephant', 'fox']
+DATASET_NAMES = ['crc', 'count_mnist', 'dgr', 'four_mnist', 'masati', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN', 'MiLstm']
 
 
@@ -18,14 +18,16 @@ def parse_args():
     parser.add_argument('-s', '--seeds', default=",".join(str(s) for s in DEFAULT_SEEDS), type=str,
                         help='The seeds for the training. Should be at least as long as the number of repeats.')
     parser.add_argument('-r', '--n_repeats', default=1, type=int, help='The number of models to train (>=1).')
-    parser.add_argument('-e', '--n_epochs', default=150, type=int, help='The number of epochs to train for.')
-    parser.add_argument('-p', '--patience', default=15, type=int, help='The patience to use during training.')
+    parser.add_argument('-e', '--n_epochs', type=int, help='The number of epochs to train for.')
+    parser.add_argument('-p', '--patience', type=int, help='The patience to use during training.')
+    parser.add_argument('-i', '--patience_interval', type=int, help='The patience interval to use during training.')
     args = parser.parse_args()
-    return args.dataset_name, args.model_name, args.seeds, args.n_repeats, args.n_epochs, args.patience
+    return args.dataset_name, args.model_name, args.seeds, args.n_repeats, \
+        args.n_epochs, args.patience, args.patience_interval
 
 
 def run_training():
-    dataset_name, model_name, seeds, n_repeats, n_epochs, patience = parse_args()
+    dataset_name, model_name, seeds, n_repeats, n_epochs, patience, patience_interval = parse_args()
 
     # Parse seed list
     seeds = [int(s) for s in seeds.split(",")]
@@ -43,18 +45,18 @@ def run_training():
     print('  Model Class: {:}'.format(model_clz))
     print('  Trainer Class: {:}'.format(trainer_clz))
 
-    train_params = {
-        'n_epochs': n_epochs,
-        'patience': patience
-    }
+    train_params_override = {}
+    if n_epochs is not None:
+        train_params_override['n_epochs'] = n_epochs
+    if patience is not None:
+        train_params_override['patience'] = patience
+    if patience_interval is not None:
+        train_params_override['patience_interval'] = patience_interval
 
-    print('  Training with params: {:}'.format(train_params))
+    print('  Training params override: {:}'.format(train_params_override))
     print('  Seeds: {:}'.format(seeds))
 
-    if dataset_name in ['tiger', 'elephant', 'fox']:
-        trainer = trainer_clz(device, train_params, model_clz, dataset_name)
-    else:
-        trainer = trainer_clz(device, train_params, model_clz)
+    trainer = trainer_clz(device, model_clz, dataset_name, train_params_override=train_params_override)
 
     if n_repeats > 1:
         print('  Training using multiple trainer')

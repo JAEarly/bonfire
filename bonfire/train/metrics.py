@@ -7,7 +7,9 @@ import torch
 import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, confusion_matrix
 from texttable import Texttable
-from typing import List, Tuple
+from torch import nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 class Metric(ABC):
@@ -25,13 +27,22 @@ class Metric(ABC):
         """
         The direction that we want to optimise when doing hyperparameter tuning
         maximise for classification (accuracy)
-        minimise for regression (loss
-        :return:
+        minimise for regression (loss)
         """
 
     @staticmethod
     @abstractmethod
-    def calculate_metric(probas, targets, criterion, labels):
+    def criterion():
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def calculate_metric(probas, targets, labels):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def from_train_loss(train_loss):
         pass
 
     @abstractmethod
@@ -39,7 +50,7 @@ class Metric(ABC):
         pass
 
     @abstractmethod
-    def output(self):
+    def out(self):
         pass
 
 
@@ -56,10 +67,14 @@ class ClassificationMetric(Metric):
         return self.accuracy
 
     @staticmethod
-    def calculate_metric(preds, targets, criterion, labels):
+    def criterion():
+        return lambda outputs, targets: nn.CrossEntropyLoss()(outputs, targets.long())
+
+    @staticmethod
+    def calculate_metric(preds, targets, labels):
         _, probas = torch.max(F.softmax(preds, dim=1), dim=1)
         acc = accuracy_score(targets.long(), probas)
-        loss = criterion(preds, targets).item()
+        loss = ClassificationMetric.criterion()(preds, targets).item()
         conf_mat = pd.DataFrame(
             confusion_matrix(targets.long(), probas, labels=labels),
             index=pd.Index(labels, name='Actual'),
@@ -67,103 +82,146 @@ class ClassificationMetric(Metric):
         )
         return ClassificationMetric(acc, loss, conf_mat)
 
+    @staticmethod
+    def from_train_loss(train_loss):
+        return ClassificationMetric(None, train_loss, None)
+
     def short_string_repr(self):
         return "{{Acc: {:.3f}; Loss: {:.3f}}}".format(self.accuracy, self.loss)
 
-    def output(self):
+    def out(self):
         print('Acc: {:.3f}'.format(self.accuracy))
         print('Loss: {:.3f}'.format(self.loss))
         print(self.conf_mat)
 
 
-class RegressionMetric(Metric, ABC):
+class RegressionMetric(Metric):
 
-    def __init__(self, loss):
-        self.loss = loss
+    optimise_direction = 'minimize'
+
+    def __init__(self, mse_loss, mae_loss):
+        self.mse_loss = mse_loss
+        self.mae_loss = mae_loss
 
     def key_metric(self):
-        return self.loss
+        return self.mse_loss
 
-    @classmethod
-    def calculate_metric(cls, preds, targets, criterion, labels):
-        loss = criterion(preds, targets).item()
-        return cls(loss)
+    @staticmethod
+    def criterion():
+        return lambda outputs, targets: nn.MSELoss()(outputs.squeeze(), targets.squeeze())
+
+    @staticmethod
+    def calculate_metric(preds, targets, labels):
+        mse_loss = RegressionMetric.criterion()(preds, targets).item()
+        mae_loss = nn.L1Loss()(preds.squeeze(), targets.squeeze()).item()
+        return RegressionMetric(mse_loss, mae_loss)
+
+    @staticmethod
+    def from_train_loss(train_loss):
+        return RegressionMetric(train_loss, None)
 
     def short_string_repr(self):
-        return "{{Loss: {:.3f}}}".format(self.loss)
+        return "{{MSE Loss: {:.3f}; ".format(self.mse_loss) + \
+               ("MAE Loss: {:.3f}}}".format(self.mae_loss) if self.mae_loss is not None else "MAE Loss: None}")
 
-    def output(self):
-        print('Loss: {:.3f}'.format(self.loss))
-
-
-class MaximizeRegressionMetric(RegressionMetric):
-
-    optimise_direction = 'maximize'
+    def out(self):
+        print('MSE Loss: {:.3f}'.format(self.mse_loss))
+        print('MAE Loss: {:.3f}'.format(self.mae_loss))
 
 
-class MinimiseRegressionMetric(RegressionMetric):
+class CountRegressionMetric(RegressionMetric):
 
-    optimise_direction = 'minimise'
+    def __init__(self, mse_loss, mae_loss, conf_mat=None):
+        super().__init__(mse_loss, mae_loss)
+        self.conf_mat = conf_mat
+
+    @staticmethod
+    def calculate_metric(preds, targets, labels):
+        regression_metric = RegressionMetric.calculate_metric(preds, targets, labels)
+        max_count = int(max(max(targets), max(preds)))
+        labels = list(range(max_count + 1))
+        conf_mat = pd.DataFrame(
+            confusion_matrix(targets.long(), torch.round(preds), labels=labels),
+            index=pd.Index(labels, name='Actual'),
+            columns=pd.Index(labels, name='Predicted')
+        )
+        return CountRegressionMetric(regression_metric.mse_loss, regression_metric.mae_loss, conf_mat)
+
+    def out(self):
+        print('MSE Loss: {:.3f}'.format(self.mse_loss))
+        print('MAE Loss: {:.3f}'.format(self.mae_loss))
+        if self.conf_mat is not None:
+            print(self.conf_mat)
 
 
-def eval_complete(model, train_dataset, val_dataset, test_dataset, criterion, metric: Metric, verbose=False):
-    train_results = eval_model(model, train_dataset, criterion, metric)
+def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, metric, verbose=False):
+    train_results = eval_model(model, train_dataloader, metric)
     if verbose:
         print('\n-- Train Results --')
-        train_results.output()
-    val_results = eval_model(model, val_dataset, criterion, metric)
+        train_results.out()
+    val_results = eval_model(model, val_dataloader, metric)
     if verbose:
         print('\n-- Val Results --')
-        val_results.output()
-    test_results= eval_model(model, test_dataset, criterion, metric)
+        val_results.out()
+    test_results = eval_model(model, test_dataloader, metric)
     if verbose:
         print('\n-- Test Results --')
-        test_results.output()
+        test_results.out()
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataset, criterion, metric: Metric):
+def eval_model(model, dataloader, metric):
     model.eval()
     with torch.no_grad():
         all_preds = []
-        for bag in dataset.bags:
-            bag_pred, _ = model.forward_verbose(bag)
-            all_preds.append(bag_pred.detach().cpu())
+        for data in tqdm(dataloader, desc='Evaluating', leave=False):
+            bags = data[0]
+            bag_pred = model(bags)
+            all_preds.append(bag_pred.cpu())
         labels = list(range(model.n_classes))
         all_preds = torch.cat(all_preds)
-        bag_metric = metric.calculate_metric(all_preds, dataset.targets, criterion, labels)
+        bag_metric = metric.calculate_metric(all_preds, dataloader.dataset.targets, labels)
         return bag_metric
 
 
-def output_results(results: List[Tuple[Metric, Metric, Metric]]):
-    results_type = type(results[0][0])
+def output_results(model_names, results_arr):
+    n_models, n_repeats, n_splits = results_arr.shape
+    assert n_models == len(model_names)
+    assert n_splits == 3
+
+    results_type = type(results_arr[0][0][0])
     if results_type == ClassificationMetric:
-        output_classification_results(results)
+        output_classification_results(model_names, results_arr)
     elif issubclass(results_type, RegressionMetric):
-        output_regression_results(results)
+        output_regression_results(model_names, results_arr)
     else:
         raise NotImplementedError('No results output for metrics {:}'.format(results_type))
 
 
-def output_classification_results(results: List[Tuple[ClassificationMetric, ClassificationMetric,
-                                                      ClassificationMetric]]):
-    raw_results = []
-    for (train_results, val_results, test_results) in results:
-        raw_results.append([train_results.accuracy, train_results.loss,
-                            val_results.accuracy, val_results.loss,
-                            test_results.accuracy, test_results.loss])
-    raw_results = np.asarray(raw_results)
-    rows = [['Train Accuracy', 'Train Loss', 'Val Accuracy', 'Val Loss', 'Test Accuracy', 'Test Loss']]
-    results_row = []
-    for i in range(6):
-        values = raw_results[:, i]
-        mean = np.mean(values)
-        sem = np.std(values) / np.sqrt(len(values))
-        results_row.append('{:.4f} +- {:.4f}'.format(mean, sem))
-    rows.append(results_row)
+def output_classification_results(model_names, results_arr):
+    n_models, n_repeats, _ = results_arr.shape
+    results = np.empty((n_models, 6), dtype=object)
+    mean_test_accuracies = []
+    for model_idx in range(n_models):
+        model_results = results_arr[model_idx]
+        expanded_model_results = np.empty((n_repeats, 6), dtype=float)
+        for repeat_idx in range(n_repeats):
+            train_results, val_results, test_results = model_results[repeat_idx]
+            expanded_model_results[repeat_idx, :] = [train_results.loss, train_results.accuracy,
+                                                     val_results.loss, val_results.accuracy,
+                                                     test_results.loss, test_results.accuracy]
+        mean = np.mean(expanded_model_results, axis=0)
+        sem = np.std(expanded_model_results, axis=0) / np.sqrt(len(expanded_model_results))
+        mean_test_accuracies.append(mean[5])
+        for metric_idx in range(6):
+            results[model_idx, metric_idx] = '{:.4f} +- {:.4f}'.format(mean[metric_idx], sem[metric_idx])
+    model_order = np.argsort(mean_test_accuracies)[::-1]
+    rows = [['Model Name', 'Train Accuracy', 'Train Loss', 'Val Accuracy', 'Val Loss', 'Test Accuracy', 'Test Loss']]
+    for model_idx in model_order:
+        rows.append([model_names[model_idx]] + list(results[model_idx, :]))
     table = Texttable()
-    table.set_cols_dtype(['t'] * 6)
-    table.set_cols_align(['c'] * 6)
+    table.set_cols_dtype(['t'] * 7)
+    table.set_cols_align(['c'] * 7)
     table.add_rows(rows)
     table.set_max_width(0)
     print(table.draw())
@@ -171,22 +229,30 @@ def output_classification_results(results: List[Tuple[ClassificationMetric, Clas
     print('Done!')
 
 
-def output_regression_results(results: List[Tuple[RegressionMetric, RegressionMetric, RegressionMetric]]):
-    raw_results = []
-    for (train_results, val_results, test_results) in results:
-        raw_results.append([train_results.loss, val_results.loss, test_results.loss])
-    raw_results = np.asarray(raw_results)
-    rows = [['Train Loss', 'Val Loss', 'Test Loss']]
-    results_row = []
-    for i in range(3):
-        values = raw_results[:, i]
-        mean = np.mean(values)
-        sem = np.std(values) / np.sqrt(len(values))
-        results_row.append('{:.4f} +- {:.4f}'.format(mean, sem))
-    rows.append(results_row)
+def output_regression_results(model_names, results_arr):
+    n_models, n_repeats, _ = results_arr.shape
+    results = np.empty((n_models, 6), dtype=object)
+    mean_test_mae_losses = []
+    for model_idx in range(n_models):
+        model_results = results_arr[model_idx]
+        expanded_model_results = np.empty((n_repeats, 6), dtype=float)
+        for repeat_idx in range(n_repeats):
+            train_results, val_results, test_results = model_results[repeat_idx]
+            expanded_model_results[repeat_idx, :] = [train_results.mse_loss, train_results.mae_loss,
+                                                     val_results.mse_loss, val_results.mae_loss,
+                                                     test_results.mse_loss, test_results.mae_loss]
+        mean = np.mean(expanded_model_results, axis=0)
+        sem = np.std(expanded_model_results, axis=0) / np.sqrt(len(expanded_model_results))
+        mean_test_mae_losses.append(mean[5])
+        for metric_idx in range(6):
+            results[model_idx, metric_idx] = '{:.4f} +- {:.4f}'.format(mean[metric_idx], sem[metric_idx])
+    model_order = np.argsort(mean_test_mae_losses)
+    rows = [['Model Name', 'Train MSE', 'Train MAE', 'Val MSE', 'Val MAE', 'Test MSE', 'Test MAE']]
+    for model_idx in model_order:
+        rows.append([model_names[model_idx]] + list(results[model_idx, :]))
     table = Texttable()
-    table.set_cols_dtype(['t'] * 3)
-    table.set_cols_align(['c'] * 3)
+    table.set_cols_dtype(['t'] * 7)
+    table.set_cols_align(['c'] * 7)
     table.add_rows(rows)
     table.set_max_width(0)
     print(table.draw())

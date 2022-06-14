@@ -3,12 +3,21 @@ from optuna.trial import TrialState
 
 from bonfire.tune.tune_util import load_study, generate_figure
 import numpy as np
+import argparse
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('study_uid')
+    parser.add_argument('study_dir')
+    parser.add_argument('direction', choices=['maximize', 'minimize'])
+    args = parser.parse_args()
+    return args.study_uid, args.study_dir, args.direction
 
 
 def run():
-    maxmise = True
-    study = load_study("Optimise-MultiHeadAttentionNN", "2021-12-01-16.11.12",
-                       direction='maximize' if maxmise else 'minimize')
+    study_uid, study_dir, direction = parse_args()
+    study = load_study(study_uid, study_dir, direction=direction)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -18,7 +27,7 @@ def run():
     complete_trial_scores = [t.value for t in study.trials if t.state == TrialState.COMPLETE]
 
     top_scores = np.argsort(all_trial_scores)
-    if maxmise:
+    if direction == 'maximize':
         top_scores = top_scores[::-1]
 
     print("Study statistics: ")
@@ -32,7 +41,7 @@ def run():
     print("  Avg: {:.3f}".format(np.mean(complete_trial_scores)))
     print("  Min: {:.3f}".format(min(complete_trial_scores)))
 
-    print("Top by accuracy:")
+    print("Top by key metric:")
     mean_accs = {}
     for trial_id, trial in enumerate(study.trials):
         if 'test_accuracies' in trial.user_attrs:
@@ -43,16 +52,16 @@ def run():
         for i in range(5):
             print("  {:d}: {:.3f} ({:d})".format(i+1, sorted_accs[i][1], sorted_accs[i][0]))
 
-    print("Top 5:")
-    for i in range(5):
+    print("Top 3:")
+    for i in range(3):
         print("  {:d}: {:.3f} ({:d})".format(i+1, all_trial_scores[top_scores[i]], top_scores[i]))
 
     auto_open = True
-    generate_figure(viz.plot_optimization_history, study, auto_open)
-    generate_figure(viz.plot_intermediate_values, study, auto_open)
-    generate_figure(viz.plot_slice, study, auto_open)
-    generate_figure(viz.plot_param_importances, study, auto_open)
-    generate_figure(viz.plot_param_importances, study, auto_open,
+    generate_figure(viz.plot_optimization_history, study_dir, study, auto_open)
+    generate_figure(viz.plot_intermediate_values, study_dir, study, auto_open)
+    generate_figure(viz.plot_slice, study_dir, study, auto_open)
+    generate_figure(viz.plot_param_importances, study_dir, study, auto_open)
+    generate_figure(viz.plot_param_importances, study_dir, study, auto_open,
                     target=lambda t: t.duration.total_seconds(), target_name="duration")
 
     while True:
