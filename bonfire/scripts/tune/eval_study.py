@@ -3,14 +3,21 @@ from optuna.trial import TrialState
 
 from bonfire.tune.tune_util import load_study, generate_figure
 import numpy as np
+import argparse
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('study_uid')
+    parser.add_argument('study_dir')
+    parser.add_argument('direction', choices=['maximize', 'minimize'])
+    args = parser.parse_args()
+    return args.study_uid, args.study_dir, args.direction
 
 
 def run():
-    # TODO clean this up
-    maxmise = False
-    study_dir = "dgr/EmbeddingSpaceNN"
-    study = load_study("Optimise-dgr-EmbeddingSpaceNN_2022-06-02-12.11.30", "dgr/EmbeddingSpaceNN",
-                       direction='maximize' if maxmise else 'minimize')
+    study_uid, study_dir, direction = parse_args()
+    study = load_study(study_uid, study_dir, direction=direction)
 
     pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
     complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
@@ -20,7 +27,7 @@ def run():
     complete_trial_scores = [t.value for t in study.trials if t.state == TrialState.COMPLETE]
 
     top_scores = np.argsort(all_trial_scores)
-    if maxmise:
+    if direction == 'maximize':
         top_scores = top_scores[::-1]
 
     print("Study statistics: ")

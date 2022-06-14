@@ -134,12 +134,12 @@ class SivalDataset(MilDataset):
     n_classes = len(positive_clzs) + 1
 
     def __init__(self, bag_names, bags, targets, instance_targets, original_targets):
-        super().__init__(bags, targets, instance_targets)
+        super().__init__(bags, targets, instance_targets, None)
         self.bag_names = bag_names
         self.original_targets = original_targets
 
     @classmethod
-    def create_datasets(cls, random_state=12):
+    def create_datasets(cls, seed=12):
         parsed_data = parse_data_from_file()
         bag_names, bags, original_targets, instance_labels = parsed_data
 
@@ -149,13 +149,13 @@ class SivalDataset(MilDataset):
         original_targets = [original_targets[i] for i in selected_idxs]
 
         splits = train_test_split(bag_names, bags, targets, instance_labels, original_targets,
-                                  train_size=0.8, stratify=targets, random_state=random_state)
+                                  train_size=0.8, stratify=targets, random_state=seed)
 
         train_bag_names, train_bags, train_targets, train_ils, train_orig_targets = [splits[i] for i in [0, 2, 4, 6, 8]]
         test_bag_names, test_bags, test_targets, test_ils, test_orig_targets = [splits[i] for i in [1, 3, 5, 7, 9]]
 
         splits = train_test_split(test_bag_names, test_bags, test_targets, test_ils, test_orig_targets,
-                                  train_size=0.5, stratify=test_targets, random_state=random_state)
+                                  train_size=0.5, stratify=test_targets, random_state=seed)
 
         val_bag_names, val_bags, val_targets, val_ils, val_orig_targets = [splits[i] for i in [0, 2, 4, 6, 8]]
         test_bag_names, test_bags, test_targets, test_ils, test_orig_targets = [splits[i] for i in [1, 3, 5, 7, 9]]
@@ -165,6 +165,10 @@ class SivalDataset(MilDataset):
         test_dataset = SivalDataset(test_bag_names, test_bags, test_targets, test_ils, test_orig_targets)
 
         return train_dataset, val_dataset, test_dataset
+
+    @classmethod
+    def create_complete_dataset(cls):
+        raise NotImplementedError
 
     def get_bag_from_name(self, bag_name):
         try:

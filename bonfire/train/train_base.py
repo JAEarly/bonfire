@@ -81,7 +81,7 @@ class Trainer(ABC):
             return self.dataset_clz.create_datasets(seed=seed, **self.dataset_params)
         return self.dataset_clz.create_datasets(seed=seed)
 
-    def create_train_dataloader(self, dataset, batch_size):
+    def create_dataloader(self, dataset, shuffle, n_workers):
         raise NotImplementedError("Base trainer class does not provide a create_train_dataloader implementation. "
                                   "You need to use a mixin: NetTrainerMixin, GNNTrainerMixin")
 
@@ -103,7 +103,7 @@ class Trainer(ABC):
             for key, value in new_params.items():
                 self.train_params[key] = value
 
-    def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataset):
+    def train_epoch(self, model, optimizer, criterion, train_dataloader, val_dataloader):
         model.train()
         epoch_train_loss = 0
         # epoch_prediction_loss = 0
@@ -133,12 +133,12 @@ class Trainer(ABC):
         epoch_train_metrics = self.metric_clz.from_train_loss(epoch_train_loss)
         # epoch_train_metrics = metrics.eval_model(model, train_dataloader.dataset, criterion, self.metric_clz)
         epoch_val_metrics = None
-        if val_dataset is not None:
-            epoch_val_metrics = metrics.eval_model(model, val_dataset, self.metric_clz)
+        if val_dataloader is not None:
+            epoch_val_metrics = metrics.eval_model(model, val_dataloader, self.metric_clz)
 
         return epoch_train_metrics, epoch_val_metrics
 
-    def train_model(self, model, train_dataloader, val_dataset, trial=None):
+    def train_model(self, model, train_dataloader, val_dataloader, trial=None):
         # Override current parameters with model suggested parameters
         self.update_train_params(model.suggest_train_params())
 
@@ -175,7 +175,7 @@ class Trainer(ABC):
             print('Epoch {:d}/{:d}'.format(epoch + 1, n_epochs))
             # Train model for an epoch
             epoch_outputs = self.train_epoch(model, optimizer, criterion, train_dataloader,
-                                             val_dataset if epoch % patience_interval == 0 else None)
+                                             val_dataloader if epoch % patience_interval == 0 else None)
             epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
             # Early stopping
@@ -212,15 +212,18 @@ class Trainer(ABC):
 
     def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
         train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
-        train_dataloader = self.create_train_dataloader(train_dataset, batch_size=1)
+        train_dataloader = self.create_dataloader(train_dataset, True, 2)
+        val_dataloader = self.create_dataloader(val_dataset, False, 2)
+        test_dataloader = self.create_dataloader(test_dataset, False, 2)
         model = self.create_model()
-        train_outputs = self.train_model(model, train_dataloader, val_dataset, trial=trial)
+        train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
         best_model, train_metrics, val_metrics, early_stopped = train_outputs
         if hasattr(best_model, 'flatten_parameters'):
             best_model.flatten_parameters()
-        train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataset, val_dataset,
-                                                                         test_dataset, self.metric_clz, verbose=verbose)
+        train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
+                                                                         test_dataloader, self.metric_clz,
+                                                                         verbose=verbose)
         if save_model:
             path, save_dir = self.get_model_save_path(best_model, None)
             if verbose:
@@ -338,19 +341,19 @@ class NetTrainerMixin:
 
     base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
 
-    def create_train_dataloader(self, dataset, batch_size):
+    def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        return DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=2)
+        # TODO not using batch size
+        return DataLoader(dataset, shuffle=shuffle, batch_size=1, num_workers=n_workers)
 
 
 class GNNTrainerMixin:
 
     base_models = [models.ClusterGNN]
 
-    def create_train_dataloader(self, dataset, batch_size, sampler=None):
+    def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
             raise ValueError('Invalid class {:} for trainer {:}.'.format(self.model_clz, self.__class__))
-        # TODO n_workers for Graph data loader
-        raise NotImplementedError
-        return GraphDataloader(dataset)
+        # TODO batch_size and n_workers for Graph data loader
+        return GraphDataloader(dataset, shuffle)

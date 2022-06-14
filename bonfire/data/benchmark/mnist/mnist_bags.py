@@ -167,14 +167,18 @@ class FourMnistBagsDataset(MilDataset):
 
     @classmethod
     def create_datasets(cls, mean_bag_size=30, var_bag_size=2, num_train_bags=2500, num_test_bags=1000,
-                        random_state=None):
-        if random_state is not None:
-            np.random.seed(seed=random_state)
-        train_mnist_dataset, val_mnist_dataset, test_mnist_dataset = split_mnist_datasets(random_state=random_state)
+                        seed=None):
+        if seed is not None:
+            np.random.seed(seed=seed)
+        train_mnist_dataset, val_mnist_dataset, test_mnist_dataset = split_mnist_datasets(random_state=seed)
         train_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_train_bags, train_mnist_dataset)
         val_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags, val_mnist_dataset)
         test_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags, test_mnist_dataset)
         return train_dataset, val_dataset, test_dataset
+
+    @classmethod
+    def create_complete_dataset(cls):
+        raise NotImplementedError
 
     @classmethod
     def _create_dataset(cls, mean_bag_size, var_bag_size, num_bags, original_dataset, discrim_prob=0.1):
@@ -214,7 +218,7 @@ class FourMnistBagsDataset(MilDataset):
         clz_discrim_probas = [1.0] + [discrim_prob] * 3
         bags, targets, instance_targets = cls._create_bags(clz_dists, clz_weights, clz_discrim_probas,
                                                            mean_bag_size, var_bag_size, num_bags)
-        return cls(bags, targets, instance_targets)
+        return cls(bags, targets, instance_targets, None)
 
     @classmethod
     def _create_bags(cls, clz_dists, clz_weights, clz_discrim_probas, mean_bag_size, var_bag_size, num_bags):
@@ -285,14 +289,18 @@ class CountMnistBagsDataset(MilDataset):
 
     @classmethod
     def create_datasets(cls, mean_bag_size=15, var_bag_size=1, num_train_bags=2500, num_test_bags=1000,
-                        random_state=None):
-        if random_state is not None:
-            np.random.seed(seed=random_state)
-        train_mnist_dataset, val_mnist_dataset, test_mnist_dataset = split_mnist_datasets(random_state=random_state)
+                        seed=None):
+        if seed is not None:
+            np.random.seed(seed=seed)
+        train_mnist_dataset, val_mnist_dataset, test_mnist_dataset = split_mnist_datasets(random_state=seed)
         train_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_train_bags, train_mnist_dataset)
         val_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags, val_mnist_dataset)
         test_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags, test_mnist_dataset)
         return train_dataset, val_dataset, test_dataset
+
+    @classmethod
+    def create_complete_dataset(cls):
+        raise NotImplementedError
 
     @classmethod
     def _create_dataset(cls, mean_bag_size, var_bag_size, num_bags, original_dataset, discrim_prob=0.1):
@@ -317,7 +325,7 @@ class CountMnistBagsDataset(MilDataset):
         bags, targets, instance_targets = cls._create_bags(zero_to_seven_dist, eight_dist, nine_dist, discrim_prob,
                                                            mean_bag_size, var_bag_size, num_bags)
         # Create dataset
-        return cls(bags, targets, instance_targets)
+        return cls(bags, targets, instance_targets, None)
 
     @classmethod
     def _create_bags(cls, non_discrim_dist, negative_discrim_dst, positive_discrim_dist, discrim_proba,

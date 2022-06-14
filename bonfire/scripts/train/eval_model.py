@@ -60,7 +60,7 @@ def evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose):
     results = np.empty((len(seeds), 3), dtype=object)
     for i in range(len(seeds)):
         seed = seeds[i]
-        print('    Model {:d}/{:d}; Seed {:d}'.format(i + 1, len(DEFAULT_SEEDS), seed))
+        print('    Model {:d}/{:d}; Seed {:d}'.format(i + 1, len(seeds), seed))
         model_path, _, _ = get_default_save_path(dataset_name, model_clz.__name__, repeat=i)
         results[i, :] = get_results(trainer, seed, model_clz, model_path, verbose)
     return results
@@ -68,9 +68,11 @@ def evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose):
 
 def get_results(trainer, seed, model_clz, model_path, verbose):
     results = np.empty((1, 3), dtype=object)
-    train_dataset, val_dataset, test_dataset = trainer.load_datasets(seed)
+    dataloaders = [trainer.create_dataloader(d, False, 1) for d in trainer.load_datasets(seed)]
+    train_dataloader, val_dataloader, test_dataloader = dataloaders
     model = model_clz.load_model(device, model_path)
-    results_list = eval_complete(model, train_dataset, val_dataset, test_dataset, trainer.metric_clz, verbose=verbose)
+    results_list = eval_complete(model, train_dataloader, val_dataloader, test_dataloader,
+                                 trainer.metric_clz, verbose=verbose)
     results[0, :] = results_list
     return results
 

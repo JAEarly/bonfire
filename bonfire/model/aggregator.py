@@ -16,7 +16,9 @@ class Aggregator(nn.Module, ABC):
         # TODO ensure these are the correct shape
         if agg_func_name == 'mean':
             def mean_agg(x):
-                if len(x.shape) == 2:  # n_instances * encoding_dim
+                if len(x.shape) == 1:  # n_instances
+                    return torch.mean(x)
+                elif len(x.shape) == 2:  # n_instances * encoding_dim
                     return torch.mean(x, dim=0)
                 raise NotImplementedError('Check shape!')
             return mean_agg

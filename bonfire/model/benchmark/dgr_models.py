@@ -30,7 +30,7 @@ class DgrEncoder(nn.Module):
 
 class DgrInstanceSpaceNN(models.InstanceSpaceNN):
 
-    def __init__(self, device, d_enc=64, ds_enc_hid=(64,), ds_agg_hid=(64,), dropout=0.1, agg_func_name='sum'):
+    def __init__(self, device, d_enc=64, ds_enc_hid=(64,), ds_agg_hid=(64,), dropout=0.25, agg_func_name='mean'):
         encoder = DgrEncoder(ds_enc_hid, d_enc, dropout)
         aggregator = agg.InstanceAggregator(d_enc, ds_agg_hid, DGRDataset.n_classes, dropout, agg_func_name)
         super().__init__(device, DGRDataset.n_classes, DGRDataset.n_expected_dims, encoder, aggregator)
@@ -38,8 +38,8 @@ class DgrInstanceSpaceNN(models.InstanceSpaceNN):
     @overrides
     def suggest_train_params(self):
         return {
-            'lr': 5e-4,
-            'weight_decay': 1e-4,
+            'lr': 5e-5,
+            'weight_decay': 0.01,
         }
 
 

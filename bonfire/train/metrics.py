@@ -154,24 +154,23 @@ class CountRegressionMetric(RegressionMetric):
             print(self.conf_mat)
 
 
-def eval_complete(model, train_dataset, val_dataset, test_dataset, metric, verbose=False):
-    train_results = eval_model(model, train_dataset, metric)
+def eval_complete(model, train_dataloader, val_dataloader, test_dataloader, metric, verbose=False):
+    train_results = eval_model(model, train_dataloader, metric)
     if verbose:
         print('\n-- Train Results --')
         train_results.out()
-    val_results = eval_model(model, val_dataset, metric)
+    val_results = eval_model(model, val_dataloader, metric)
     if verbose:
         print('\n-- Val Results --')
         val_results.out()
-    test_results = eval_model(model, test_dataset, metric)
+    test_results = eval_model(model, test_dataloader, metric)
     if verbose:
         print('\n-- Test Results --')
         test_results.out()
     return train_results, val_results, test_results
 
 
-def eval_model(model, dataset, metric, n_workers=2, batch_size=2):
-    dataloader = DataLoader(dataset, shuffle=False, num_workers=n_workers, batch_size=batch_size)
+def eval_model(model, dataloader, metric):
     model.eval()
     with torch.no_grad():
         all_preds = []
@@ -181,7 +180,7 @@ def eval_model(model, dataset, metric, n_workers=2, batch_size=2):
             all_preds.append(bag_pred.cpu())
         labels = list(range(model.n_classes))
         all_preds = torch.cat(all_preds)
-        bag_metric = metric.calculate_metric(all_preds, dataset.targets, labels)
+        bag_metric = metric.calculate_metric(all_preds, dataloader.dataset.targets, labels)
         return bag_metric
 
 

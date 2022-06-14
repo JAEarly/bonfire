@@ -202,7 +202,7 @@ class DGRDataset(MilDataset):
         for i in tqdm(range(len(METADATA_DF)), desc='Extracting patches'):
             image_id = METADATA_DF['image_id'][i]
             sat_path = METADATA_DF['sat_image_path'][i]
-            sat_img = cv2.cvtColor(cv2.imread(sat_path), cv2.COLOR_BGR2RGB)
+            sat_img = cv2.imread(sat_path)  # BGR
 
             n_x = int(sat_img.shape[0]/grid_size)
             n_y = int(sat_img.shape[1]/grid_size)
@@ -216,7 +216,8 @@ class DGRDataset(MilDataset):
                     patch_img = cv2.resize(patch_img, (patch_size, patch_size))
                     patch_path = "{:s}/{:d}_{:d}_{:d}.png".format(patch_dir, image_id, i_x, i_y)
                     patch_paths.append(patch_path)
-                    cv2.imwrite(patch_path, patch_img)
+
+                    cv2.imwrite(patch_path, patch_img)  # BGR
 
             patches_df.loc[i, 'patch_paths'] = ",".join(patch_paths)
 
