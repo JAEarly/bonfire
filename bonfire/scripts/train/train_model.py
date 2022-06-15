@@ -1,14 +1,38 @@
 import argparse
 
+import wandb
+
 from bonfire.model.benchmark import get_model_clz
 from bonfire.train import DEFAULT_SEEDS
 from bonfire.train.benchmark import get_trainer_clz
 from bonfire.util import get_device
+import yaml
+
 
 device = get_device()
 
 DATASET_NAMES = ['crc', 'count_mnist', 'dgr', 'four_mnist', 'masati', 'musk', 'sival', 'tiger', 'elephant', 'fox']
 MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN', 'MiLstm']
+
+
+def parse_config(path, model_name):
+    stream = open(path, 'r')
+    config = {}
+    model_override_config = {}
+    for config_name, params in yaml.safe_load(stream).items():
+        if config_name == 'default':
+            config = params
+        elif config_name == model_name:
+            model_override_config = params
+    print('Default:', config)
+
+    for param_name, param_value in model_override_config.items():
+        config[param_name] = param_value
+        print('Override', param_name)
+
+    print('New:', config)
+
+    return config
 
 
 def parse_args():
@@ -28,6 +52,10 @@ def parse_args():
 
 def run_training():
     dataset_name, model_name, seeds, n_repeats, n_epochs, patience, patience_interval = parse_args()
+
+    config = parse_config("bonfire/bonfire/config/four_mnist_config.yaml", model_name)
+
+    wandb.init(project="MIL-Four_MNIST-Test", config=config)
 
     # Parse seed list
     seeds = [int(s) for s in seeds.split(",")]

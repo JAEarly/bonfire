@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+import wandb
 from sklearn.metrics import accuracy_score, confusion_matrix
 from texttable import Texttable
 from torch import nn
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
@@ -87,12 +87,17 @@ class ClassificationMetric(Metric):
         return ClassificationMetric(None, train_loss, None)
 
     def short_string_repr(self):
-        return "{{Acc: {:.3f}; Loss: {:.3f}}}".format(self.accuracy, self.loss)
+        return "{{Loss: {:.3f}; ".format(self.loss) + \
+               ("Acc: {:.3f}}}".format(self.accuracy) if self.accuracy is not None else "Acc: None}")
 
     def out(self):
         print('Acc: {:.3f}'.format(self.accuracy))
         print('Loss: {:.3f}'.format(self.loss))
         print(self.conf_mat)
+
+    def add_wandb_summary(self, dataset_split):
+        wandb.summary["{:s}_acc".format(dataset_split)] = self.accuracy
+        wandb.summary["{:s}_loss".format(dataset_split)] = self.loss
 
 
 class RegressionMetric(Metric):
@@ -174,13 +179,16 @@ def eval_model(model, dataloader, metric):
     model.eval()
     with torch.no_grad():
         all_preds = []
+        all_targets = []
         for data in tqdm(dataloader, desc='Evaluating', leave=False):
-            bags = data[0]
+            bags, targets = data[0], data[1]
             bag_pred = model(bags)
             all_preds.append(bag_pred.cpu())
+            all_targets.append(targets.cpu())
         labels = list(range(model.n_classes))
         all_preds = torch.cat(all_preds)
-        bag_metric = metric.calculate_metric(all_preds, dataloader.dataset.targets, labels)
+        all_targets = torch.cat(all_targets)
+        bag_metric = metric.calculate_metric(all_preds, all_targets, labels)
         return bag_metric
 
 

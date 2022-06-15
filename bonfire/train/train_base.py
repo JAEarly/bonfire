@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import optuna
 import torch
-from matplotlib import pyplot as plt
+import wandb
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -72,10 +72,6 @@ class Trainer(ABC):
     def model_name(self):
         return self.model_clz.__name__
 
-    @abstractmethod
-    def plot_training(self, train_metrics, val_metrics):
-        pass
-
     def load_datasets(self, seed=None):
         if self.dataset_params is not None:
             return self.dataset_clz.create_datasets(seed=seed, **self.dataset_params)
@@ -96,7 +92,7 @@ class Trainer(ABC):
         return torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.99), weight_decay=weight_decay)
 
     def get_train_param(self, key):
-        return self.train_params[key]
+        return wandb.config[key]
 
     def update_train_params(self, new_params):
         if new_params is not None:
@@ -179,20 +175,25 @@ class Trainer(ABC):
             epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
             # Early stopping
-            if patience is not None and epoch_val_metrics is not None:
-                new_key_metric = epoch_val_metrics.key_metric()
-                if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
-                        self.metric_clz.optimise_direction == 'minimize' and new_key_metric < best_key_metric:
-                    best_key_metric = new_key_metric
-                    best_model = copy.deepcopy(model)
-                    patience_tracker = 0
-                else:
-                    patience_tracker += 1
-                    if patience_tracker == patience:
-                        early_stopped = True
-                        break
+            if patience is not None:
+                if epoch_val_metrics is not None:
+                    new_key_metric = epoch_val_metrics.key_metric()
+                    if self.metric_clz.optimise_direction == 'maximize' and new_key_metric > best_key_metric or \
+                            self.metric_clz.optimise_direction == 'minimize' and new_key_metric < best_key_metric:
+                        best_key_metric = new_key_metric
+                        best_model = copy.deepcopy(model)
+                        patience_tracker = 0
+                    else:
+                        patience_tracker += 1
+                        if patience_tracker == patience:
+                            early_stopped = True
+                    wandb.log({'val_loss': epoch_val_metrics.loss,
+                               'val_acc': epoch_val_metrics.accuracy},
+                              commit=False)
             else:
                 best_model = copy.deepcopy(model)
+
+            wandb.log({'train_loss': epoch_train_metrics.loss}, commit=True)
 
             # Update progress
             train_metrics.append(epoch_train_metrics)
@@ -208,13 +209,16 @@ class Trainer(ABC):
                 if trial.should_prune():
                     raise optuna.exceptions.TrialPruned()
 
+            if early_stopped:
+                break
+
         return best_model, train_metrics, val_metrics, early_stopped
 
-    def train_single(self, seed=5, save_model=True, show_plot=True, verbose=True, trial=None):
+    def train_single(self, seed=5, save_model=True, verbose=True, trial=None):
         train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
-        train_dataloader = self.create_dataloader(train_dataset, True, 2)
-        val_dataloader = self.create_dataloader(val_dataset, False, 2)
-        test_dataloader = self.create_dataloader(test_dataset, False, 2)
+        train_dataloader = self.create_dataloader(train_dataset, True, 0)
+        val_dataloader = self.create_dataloader(val_dataset, False, 0)
+        test_dataloader = self.create_dataloader(test_dataset, False, 0)
         model = self.create_model()
         train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
         del model
@@ -232,8 +236,9 @@ class Trainer(ABC):
                 os.makedirs(save_dir)
             torch.save(best_model.state_dict(), path)
 
-        if show_plot:
-            self.plot_training(train_metrics, val_metrics)
+        train_results.add_wandb_summary('train')
+        val_results.add_wandb_summary('val')
+        test_results.add_wandb_summary('test')
 
         return best_model, train_results, val_results, test_results, early_stopped
 
@@ -281,29 +286,6 @@ class ClassificationTrainer(Trainer, ABC):
     def get_criterion(self):
         return ClassificationMetric.criterion()
 
-    def plot_training(self, train_metrics, val_metrics):
-        x_range = range(len(train_metrics))
-        train_accs = [m.accuracy for m in train_metrics]
-        train_losses = [m.loss for m in train_metrics]
-        val_accs = [m.accuracy for m in val_metrics]
-        val_losses = [m.loss for m in val_metrics]
-
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(14, 5))
-        axes[0].plot(x_range, train_accs, label='Train')
-        axes[0].plot(x_range, val_accs, label='Validation')
-        axes[0].set_xlim(0, len(x_range))
-        axes[0].set_ylim(min(min(train_accs), min(val_accs)) * 0.95, max(max(train_accs), max(val_accs)) * 1.05)
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('Accuracy')
-        axes[1].plot(x_range, train_losses, label='Train')
-        axes[1].plot(x_range, val_losses, label='Validation')
-        axes[1].set_xlim(0, len(x_range))
-        axes[1].set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
-        axes[1].set_xlabel('Epoch')
-        axes[1].set_ylabel('Cross Entropy Loss')
-        axes[1].legend(loc='best')
-        plt.show()
-
 
 class RegressionTrainer(Trainer, ABC):
 
@@ -311,22 +293,6 @@ class RegressionTrainer(Trainer, ABC):
 
     def get_criterion(self):
         return RegressionMetric.criterion()
-
-    def plot_training(self, train_metrics, val_metrics):
-        x_train_range = range(len(train_metrics))
-        train_losses = [m.mse_loss for m in train_metrics]
-        x_val_range = [idx for idx in range(len(val_metrics)) if val_metrics[idx] is not None]
-        val_losses = [val_metrics[idx].mse_loss for idx in x_val_range]
-
-        fig, axis = plt.subplots(nrows=1, ncols=1, figsize=(7, 5))
-        axis.plot(x_train_range, train_losses, label='Train')
-        axis.plot(x_val_range, val_losses, label='Validation')
-        axis.set_xlim(0, len(x_train_range))
-        axis.set_ylim(min(min(train_losses), min(val_losses)) * 0.95, max(max(train_losses), max(val_losses)) * 1.05)
-        axis.set_xlabel('Epoch')
-        axis.set_ylabel('MSE Loss')
-        axis.legend(loc='best')
-        plt.show()
 
 
 class CountRegressionTrainer(RegressionTrainer, ABC):
@@ -340,6 +306,7 @@ class CountRegressionTrainer(RegressionTrainer, ABC):
 class NetTrainerMixin:
 
     base_models = [models.InstanceSpaceNN, models.EmbeddingSpaceNN, models.AttentionNN, models.MiLstm]
+    model_clz = None
 
     def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):
@@ -351,6 +318,7 @@ class NetTrainerMixin:
 class GNNTrainerMixin:
 
     base_models = [models.ClusterGNN]
+    model_clz = None
 
     def create_dataloader(self, dataset, shuffle, n_workers):
         if not any([base_clz in self.base_models for base_clz in inspect.getmro(self.model_clz)]):

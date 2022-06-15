@@ -17,7 +17,8 @@ class FourMnistTrainer(ClassificationTrainer, ABC):
             'lr': 1e-5,
             'wd': 1e-3,
             'n_epochs': 100,
-            'patience': 10,
+            'patience': 5,
+            'patience_interval': 2,
         }
 
 

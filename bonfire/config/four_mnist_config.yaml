@@ -1,0 +1,9 @@
+default:
+  lr: 1.e-5
+  weight_decay: 1.e-3
+  n_epochs: 100
+  patience: 5
+  patience_interval: 2
+InstanceSpaceNN:
+  lr: 1.e-4
+  weight_decay: 1.e-4
