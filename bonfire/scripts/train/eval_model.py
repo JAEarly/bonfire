@@ -2,10 +2,10 @@ import argparse
 
 import numpy as np
 
+from bonfire.data.benchmark import get_dataset_clz
 from bonfire.model.benchmark import get_model_clz
 from bonfire.scripts.train.train_model import DATASET_NAMES, MODEL_NAMES
-from bonfire.train import DEFAULT_SEEDS, get_default_save_path
-from bonfire.train.benchmark import get_trainer_clz
+from bonfire.train import DEFAULT_SEEDS, get_default_save_path, trainer
 from bonfire.train.metrics import eval_complete, output_results
 from bonfire.util import get_device
 
@@ -33,14 +33,17 @@ def run_evaluation():
         raise ValueError('Not enough seeds provided for {:d} repeats'.format(n_repeats))
     seeds = seeds[:n_repeats]
 
+    dataset_clz = get_dataset_clz(dataset_name)
+
     print('Getting results for dataset {:s}'.format(dataset_name))
     results = np.empty((len(model_names), n_repeats, 3), dtype=object)
     print('Running for models: {:}'.format(model_names))
     for model_idx, model_name in enumerate(model_names):
         print('  Evaluating {:s}'.format(model_name))
         model_clz = get_model_clz(dataset_name, model_name)
-        trainer_clz = get_trainer_clz(dataset_name, model_clz)
-        trainer = trainer_clz(device, model_clz, dataset_name)
+
+        trainer = train_base.create_trainer(device, model_clz, dataset_clz)
+
         if n_repeats == 1:
             model_results = evaluate_single(dataset_name, model_clz, trainer, seeds[0], verbose)
         else:

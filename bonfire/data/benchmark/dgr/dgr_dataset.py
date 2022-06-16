@@ -5,12 +5,10 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
-from torch import nn
 from torchvision import transforms
 from tqdm import tqdm
 
 from bonfire.data.mil_dataset import MilDataset
-from bonfire.train.metrics import RegressionMetric
 
 
 def load_metadata_df():
@@ -223,25 +221,25 @@ class DGRDataset(MilDataset):
 
         patches_df.to_csv("data/DGR/patch_{:d}_{:d}_data.csv".format(grid_size, patch_size), index=False)
 
-    @classmethod
-    def baseline_performance(cls):
-        train_dataset, val_dataset, test_dataset = cls.create_datasets()
-        train_mean_target = train_dataset.targets.mean()
-
-        def performance_for_dataset(pred, dataset):
-            targets = dataset.targets
-            preds = torch.ones_like(targets)
-            preds *= pred
-            metric = RegressionMetric.calculate_metric(preds, targets, None)
-            print('MSE Loss: {:.4f}'.format(metric.mse_loss))
-            print('MAE Loss: {:.4f}'.format(metric.mae_loss))
-
-        print('-- Train --')
-        performance_for_dataset(train_mean_target, train_dataset)
-        print('-- Val --')
-        performance_for_dataset(train_mean_target, val_dataset)
-        print('-- Test --')
-        performance_for_dataset(train_mean_target, test_dataset)
+    # @classmethod
+    # def baseline_performance(cls):
+    #     train_dataset, val_dataset, test_dataset = cls.create_datasets()
+    #     train_mean_target = train_dataset.targets.mean()
+    #
+    #     def performance_for_dataset(pred, dataset):
+    #         targets = dataset.targets
+    #         preds = torch.ones_like(targets)
+    #         preds *= pred
+    #         metric = RegressionMetric.calculate_metric(preds, targets, None)
+    #         print('MSE Loss: {:.4f}'.format(metric.mse_loss))
+    #         print('MAE Loss: {:.4f}'.format(metric.mae_loss))
+    #
+    #     print('-- Train --')
+    #     performance_for_dataset(train_mean_target, train_dataset)
+    #     print('-- Val --')
+    #     performance_for_dataset(train_mean_target, val_dataset)
+    #     print('-- Test --')
+    #     performance_for_dataset(train_mean_target, test_dataset)
 
     @classmethod
     def calculate_dataset_normalisation(cls):

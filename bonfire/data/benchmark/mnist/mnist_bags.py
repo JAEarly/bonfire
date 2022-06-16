@@ -6,6 +6,7 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 
 from bonfire.data.mil_dataset import MilDataset
+from bonfire.train.metrics import ClassificationMetric
 
 
 def load_mnist(train):
@@ -164,6 +165,7 @@ class FourMnistBagsDataset(MilDataset):
     d_in = 800
     n_expected_dims = 4  # i x c x h x w
     n_classes = 4
+    metric_clz = ClassificationMetric
 
     @classmethod
     def create_datasets(cls, mean_bag_size=30, var_bag_size=2, num_train_bags=2500, num_test_bags=1000,

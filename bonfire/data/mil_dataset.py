@@ -35,6 +35,12 @@ class MilDataset(Dataset, ABC):
         pass
 
     @classmethod
+    @property
+    @abstractmethod
+    def metric_clz(cls):
+        pass
+
+    @classmethod
     @abstractmethod
     def create_datasets(cls, seed=12):
         pass
