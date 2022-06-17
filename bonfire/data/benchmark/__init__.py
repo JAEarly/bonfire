@@ -1,22 +1,12 @@
 from .mnist.mnist_bags import FourMnistBagsDataset
 
 
+dataset_clzs = [FourMnistBagsDataset]
+dataset_names = [d.name for d in dataset_clzs]
+
+
 def get_dataset_clz(dataset_name):
-    if dataset_name == 'crc':
-        pass
-    elif dataset_name == 'count_mnist':
-        pass
-    elif dataset_name == 'dgr':
-        pass
-    elif dataset_name == 'four_mnist':
-        return FourMnistBagsDataset
-    elif dataset_name == 'masati':
-        pass
-    elif dataset_name == 'musk':
-        pass
-    elif dataset_name == 'sival':
-        pass
-    elif dataset_name in ['tiger', 'elephant', 'fox']:
-        pass
-    else:
-        raise ValueError('No dataset registered with name {:s}'.format(dataset_name))
+    for dataset_clz in dataset_clzs:
+        if dataset_clz.name == dataset_name:
+            return dataset_clz
+    raise ValueError('No dataset registered with name {:s}'.format(dataset_name))

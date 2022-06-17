@@ -8,6 +8,7 @@ from bonfire.model.benchmark import get_model_clz
 from bonfire.train.trainer import create_trainer_from_clzs
 from bonfire.util.yaml_util import combine_configs
 from bonfire.util.yaml_util import parse_yaml_config, parse_training_config, parse_tuning_config
+from optuna import visualization as viz
 
 TUNE_ROOT_DIR = "out/tune"
 
@@ -32,6 +33,7 @@ class Tuner:
         self.device = device
         self.model_clz = model_clz
         self.dataset_clz = dataset_clz
+        self.project_name = 'Tune_{:s}'.format(self.dataset_clz.name)
         self.study_name = study_name
         self.training_config = training_config
         self.tuning_config = tuning_config
@@ -42,8 +44,22 @@ class Tuner:
     def direction(self):
         return self.dataset_clz.metric_clz.optimise_direction
 
-    def start(self):
+    def run_study(self):
         self.study.optimize(self, n_trials=self.n_trials)
+
+        # Init a new (empty) run just so we can log the optuna plots
+        wandb.init(
+            project=self.project_name,
+            reinit=True,
+            group=self.study_name,
+        )
+        wandb.log(
+            {
+                "optuna_optimization_history": viz.plot_optimization_history(self.study),
+                "optuna_param_importance": viz.plot_param_importances(self.study),
+                "optuna_slice": viz.plot_slice(self.study),
+            }
+        )
 
     def __call__(self, trial):
         # First configure params in Optuna
@@ -57,9 +73,10 @@ class Tuner:
 
         # Initialise a wandb run (one to one with optuna trials)
         wandb.init(
-            project=self.study_name,
+            project=self.project_name,
             config=config,
             reinit=True,
+            group=self.study_name,
         )
 
         # Create trainer based on params and actually run training
@@ -69,6 +86,8 @@ class Tuner:
         # Get final val key metric (the one that we're optimising for) and finish wandb
         key_metric = val_results.key_metric()
         wandb.summary["key_metric"] = key_metric
+
+        # Finish wandb and return key metric
         wandb.finish(quiet=True)
         return key_metric
 

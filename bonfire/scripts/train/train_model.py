@@ -2,23 +2,20 @@ import argparse
 
 import wandb
 
-from bonfire.data.benchmark import get_dataset_clz
-from bonfire.model.benchmark import get_model_clz
+from bonfire.data.benchmark import dataset_names
+from bonfire.model.benchmark import model_names
 from bonfire.train import DEFAULT_SEEDS
-from bonfire.train import create_trainer
+from bonfire.train.trainer import create_trainer_from_names
 from bonfire.util import get_device
 from bonfire.util.yaml_util import parse_yaml_config, parse_training_config
 
 device = get_device()
 
-DATASET_NAMES = ['crc', 'count_mnist', 'dgr', 'four_mnist', 'masati', 'musk', 'sival', 'tiger', 'elephant', 'fox']
-MODEL_NAMES = ['InstanceSpaceNN', 'EmbeddingSpaceNN', 'AttentionNN', 'MultiHeadAttentionNN', 'ClusterGNN', 'MiLstm']
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Builtin PyTorch MIL training script.')
-    parser.add_argument('dataset_name', choices=DATASET_NAMES, help='The dataset to use.')
-    parser.add_argument('model_name', choices=MODEL_NAMES, help='The model to train.')
+    parser.add_argument('dataset_name', choices=dataset_names, help='The dataset to use.')
+    parser.add_argument('model_name', choices=model_names, help='The model to train.')
     parser.add_argument('-s', '--seeds', default=",".join(str(s) for s in DEFAULT_SEEDS), type=str,
                         help='The seeds for the training. Should be at least as long as the number of repeats.')
     parser.add_argument('-r', '--n_repeats', default=1, type=int, help='The number of models to train (>=1).')
@@ -41,7 +38,7 @@ def run_training():
     seeds = seeds[:n_repeats]
 
     # Create trainer
-    trainer = create_trainer(device, model_name, dataset_name)
+    trainer = create_trainer_from_names(device, model_name, dataset_name)
 
     # Log
     print('Starting {:s} training'.format(dataset_name))

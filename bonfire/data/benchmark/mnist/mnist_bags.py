@@ -161,7 +161,7 @@ class SingleDigitMnistBagsDataset(MilDataset):
 
 class FourMnistBagsDataset(MilDataset):
 
-    name = 'FourMnistBags'
+    name = 'four-mnist'
     d_in = 800
     n_expected_dims = 4  # i x c x h x w
     n_classes = 4

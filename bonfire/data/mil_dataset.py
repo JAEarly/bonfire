@@ -19,6 +19,12 @@ class MilDataset(Dataset, ABC):
     @classmethod
     @property
     @abstractmethod
+    def name(cls):
+        pass
+
+    @classmethod
+    @property
+    @abstractmethod
     def d_in(cls):
         pass
 
