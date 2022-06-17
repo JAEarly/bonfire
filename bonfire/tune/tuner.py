@@ -107,5 +107,4 @@ class Tuner:
 
     @staticmethod
     def create_pruner():
-        # return optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=25, interval_steps=5)
-        return optuna.pruners.SuccessiveHalvingPruner(min_early_stopping_rate=2)
+        return optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=3)
