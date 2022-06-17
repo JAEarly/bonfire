@@ -4,8 +4,8 @@ import numpy as np
 
 from bonfire.data.benchmark import get_dataset_clz
 from bonfire.model.benchmark import get_model_clz
-from bonfire.scripts.train.train_model import DATASET_NAMES, MODEL_NAMES
-from bonfire.train import DEFAULT_SEEDS, get_default_save_path, trainer
+from scripts.train_model import DATASET_NAMES, MODEL_NAMES
+from bonfire.train import DEFAULT_SEEDS, get_default_save_path
 from bonfire.train.metrics import eval_complete, output_results
 from bonfire.util import get_device
 

@@ -10,7 +10,8 @@ def create_tuner_from_config(device, model_name, dataset_name, study_name, n_tri
     dataset_clz = get_dataset_clz(dataset_name)
 
     # Load training and tuning configs
-    config = parse_yaml_config("bonfire/bonfire/config/four_mnist_config.yaml")
+    config_path = "bonfire/config/{:s}_config.yaml".format(dataset_name)
+    config = parse_yaml_config(config_path)
     training_config = parse_training_config(config['training'], model_name)
     tuning_config = parse_tuning_config(config['tuning'], model_name)
 
