@@ -105,6 +105,7 @@ class Tuner:
         pruner = self.create_pruner()
         return optuna.create_study(direction=self.direction, study_name=self.study_name, storage=storage, pruner=pruner)
 
-    @staticmethod
-    def create_pruner():
-        return optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=3)
+    def create_pruner(self):
+        # Pruner only activates after 10 trials.
+        # Also only evaluates a run for pruning at the first point for early stopping
+        return optuna.pruners.MedianPruner(n_startup_trials=10, n_warmup_steps=self.training_config['patience'])
