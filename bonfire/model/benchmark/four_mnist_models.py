@@ -1,3 +1,4 @@
+import wandb
 from torch import nn
 
 from bonfire.data.benchmark.mnist.mnist_bags import FourMnistBagsDataset
@@ -9,6 +10,10 @@ from bonfire.model import modules as mod
 def get_model_clzs():
     return [FourMnistInstanceSpaceNN, FourMnistEmbeddingSpaceNN, FourMnistAttentionNN, FourMnistGNN,
             FourMnistEmbeddingSpaceLSTM]
+
+
+def get_model_param(key):
+    return wandb.config[key]
 
 
 MNIST_D_ENC = 128
@@ -35,27 +40,33 @@ class MnistEncoder(nn.Module):
 
 class FourMnistInstanceSpaceNN(models.InstanceSpaceNN):
 
-    def __init__(self, device, dropout=0.3, agg_func_name='mean'):
+    def __init__(self, device):
+        dropout = get_model_param("dropout")
+        agg_func = get_model_param("agg_func")
         encoder = MnistEncoder(dropout)
         aggregator = agg.InstanceAggregator(MNIST_D_ENC, MNIST_DS_AGG_HID, FourMnistBagsDataset.n_classes,
-                                            dropout, agg_func_name)
+                                            dropout, agg_func)
         super().__init__(device, FourMnistBagsDataset.n_classes, FourMnistBagsDataset.n_expected_dims,
                          encoder, aggregator)
 
 
 class FourMnistEmbeddingSpaceNN(models.EmbeddingSpaceNN):
 
-    def __init__(self, device, dropout=0.3, agg_func_name='mean'):
+    def __init__(self, device):
+        dropout = get_model_param("dropout")
+        agg_func = get_model_param("agg_func")
         encoder = MnistEncoder(dropout)
         aggregator = agg.EmbeddingAggregator(MNIST_D_ENC, MNIST_DS_AGG_HID, FourMnistBagsDataset.n_classes,
-                                             dropout, agg_func_name)
+                                             dropout, agg_func)
         super().__init__(device, FourMnistBagsDataset.n_classes, FourMnistBagsDataset.n_expected_dims,
                          encoder, aggregator)
 
 
 class FourMnistAttentionNN(models.AttentionNN):
 
-    def __init__(self, device, dropout=0.15, d_attn=64):
+    def __init__(self, device):
+        dropout = get_model_param("dropout")
+        d_attn = get_model_param("d_attn")
         encoder = MnistEncoder(dropout)
         aggregator = agg.MultiHeadAttentionAggregator(1, MNIST_D_ENC, MNIST_DS_AGG_HID, d_attn,
                                                       FourMnistBagsDataset.n_classes, dropout)
@@ -65,7 +76,8 @@ class FourMnistAttentionNN(models.AttentionNN):
 
 class FourMnistGNN(models.ClusterGNN):
 
-    def __init__(self, device, dropout=0.3):
+    def __init__(self, device):
+        dropout = get_model_param("dropout")
         encoder = MnistEncoder(dropout)
         super().__init__(device, FourMnistBagsDataset.n_classes, FourMnistBagsDataset.n_expected_dims, encoder,
                          MNIST_D_ENC, MNIST_D_ENC, (MNIST_D_ENC,), MNIST_DS_AGG_HID, dropout)
@@ -73,7 +85,9 @@ class FourMnistGNN(models.ClusterGNN):
 
 class FourMnistEmbeddingSpaceLSTM(models.MiLstm):
 
-    def __init__(self, device, bidirectional=False, dropout=0.2):
+    def __init__(self, device):
+        dropout = get_model_param("dropout")
+        bidirectional = get_model_param("bidirectional")
         encoder = MnistEncoder(dropout)
         aggregator = agg.LstmEmbeddingSpaceAggregator(MNIST_D_ENC, (MNIST_D_ENC,), 1, bidirectional,
                                                       dropout, MNIST_DS_AGG_HID, FourMnistBagsDataset.n_classes)

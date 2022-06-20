@@ -74,14 +74,12 @@ def create_graph_dataloader(dataset, shuffle, n_workers):
 
 class Trainer:
 
-    def __init__(self, device, model_clz, dataset_clz, dataloader_func,
-                 dataset_params=None, model_params=None):
+    def __init__(self, device, model_clz, dataset_clz, dataloader_func, dataset_params=None):
         self.device = device
         self.model_clz = model_clz
         self.dataset_clz = dataset_clz
         self.dataset_params = dataset_params
         self.dataloader_func = dataloader_func
-        self.model_params = model_params
 
     @property
     def model_name(self):
@@ -108,8 +106,6 @@ class Trainer:
         return self.dataloader_func(dataset, shuffle, n_workers)
 
     def create_model(self):
-        if self.model_params is not None:
-            return self.model_clz(self.device, **self.model_params)
         return self.model_clz(self.device)
 
     def create_optimizer(self, model):
