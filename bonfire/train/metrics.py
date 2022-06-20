@@ -224,7 +224,7 @@ def output_classification_results(model_names, results_arr):
         for metric_idx in range(6):
             results[model_idx, metric_idx] = '{:.4f} +- {:.4f}'.format(mean[metric_idx], sem[metric_idx])
     model_order = np.argsort(mean_test_accuracies)[::-1]
-    rows = [['Model Name', 'Train Accuracy', 'Train Loss', 'Val Accuracy', 'Val Loss', 'Test Accuracy', 'Test Loss']]
+    rows = [['Model Name', 'Train Loss', 'Train Accuracy', 'Val Loss', 'Val Accuracy', 'Test Loss', 'Test Accuracy']]
     for model_idx in model_order:
         rows.append([model_names[model_idx]] + list(results[model_idx, :]))
     table = Texttable()

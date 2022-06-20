@@ -19,7 +19,7 @@ def create_tuner_from_config(device, model_name, dataset_name, study_name, n_tri
     dataset_clz = get_dataset_clz(dataset_name)
 
     # Load training and tuning configs
-    config = parse_yaml_config("bonfire/bonfire/config/four_mnist_config.yaml")
+    config = parse_yaml_config(dataset_name)
     training_config = parse_training_config(config['training'], model_name)
     tuning_config = parse_tuning_config(config['tuning'], model_name)
 
@@ -81,7 +81,7 @@ class Tuner:
 
         # Create trainer based on params and actually run training
         trainer = create_trainer_from_clzs(self.device, self.model_clz, self.dataset_clz)
-        model, _, val_results, _ = trainer.train_single(save_model=False, verbose=False, trial=trial)
+        model, _, val_results, _ = trainer.train_single(verbose=False, trial=trial)
 
         # Get final val key metric (the one that we're optimising for) and finish wandb
         key_metric = val_results.key_metric()

@@ -1,7 +1,8 @@
 import yaml
 
 
-def parse_yaml_config(path):
+def parse_yaml_config(dataset_name):
+    path = "bonfire/config/{:s}_config.yaml".format(dataset_name)
     stream = open(path, 'r')
     config = {}
     for config_group, params in yaml.safe_load(stream).items():

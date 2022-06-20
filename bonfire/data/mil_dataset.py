@@ -48,7 +48,7 @@ class MilDataset(Dataset, ABC):
 
     @classmethod
     @abstractmethod
-    def create_datasets(cls, seed=12):
+    def create_datasets(cls):
         pass
 
     @classmethod

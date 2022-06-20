@@ -74,20 +74,19 @@ def create_graph_dataloader(dataset, shuffle, n_workers):
 
 class Trainer:
 
-    def __init__(self, device, model_clz, dataset_clz, dataloader_func, dataset_params=None):
+    def __init__(self, device, model_clz, dataset_clz, dataloader_func):
         self.device = device
         self.model_clz = model_clz
         self.dataset_clz = dataset_clz
-        self.dataset_params = dataset_params
         self.dataloader_func = dataloader_func
 
     @property
     def model_name(self):
-        return self.model_clz.__name__
+        return self.model_clz.name
 
     @property
     def dataset_name(self):
-        return self.dataset_clz.__name__
+        return self.dataset_clz.name
 
     @property
     def metric_clz(self):
@@ -97,10 +96,13 @@ class Trainer:
     def criterion(self):
         return self.metric_clz.criterion()
 
-    def load_datasets(self, seed=None):
-        if self.dataset_params is not None:
-            return self.dataset_clz.create_datasets(seed=seed, **self.dataset_params)
-        return self.dataset_clz.create_datasets(seed=seed)
+    @property
+    def wandb_project_name(self):
+        return 'Train_{:s}'.format(self.dataset_name)
+
+    @property
+    def wandb_group_name(self):
+        return 'Train_{:s}_{:s}'.format(self.dataset_name, self.model_name)
 
     def create_dataloader(self, dataset, shuffle, n_workers):
         return self.dataloader_func(dataset, shuffle, n_workers)
@@ -151,7 +153,8 @@ class Trainer:
 
         return epoch_train_metrics, epoch_val_metrics
 
-    def train_model(self, model, train_dataloader, val_dataloader, trial=None):
+    def train_model(self, train_dataloader, val_dataloader, test_dataloader, verbose=True, trial=None):
+        model = self.create_model()
         model.to(self.device)
         model.train()
 
@@ -240,68 +243,68 @@ class Trainer:
             wandb.summary["finish_case"] = "epoch limit"
             wandb.summary["final_epoch"] = n_epochs - 1
 
-        return best_model, train_metrics, val_metrics
-
-    def train_single(self, seed=5, save_model=True, verbose=True, trial=None):
-        train_dataset, val_dataset, test_dataset = self.load_datasets(seed)
-        train_dataloader = self.create_dataloader(train_dataset, True, 0)
-        val_dataloader = self.create_dataloader(val_dataset, False, 0)
-        test_dataloader = self.create_dataloader(test_dataset, False, 0)
-        model = self.create_model()
-        train_outputs = self.train_model(model, train_dataloader, val_dataloader, trial=trial)
+        # Delete model and only use best model from here on
         del model
-        best_model, train_metrics, val_metrics = train_outputs
         if hasattr(best_model, 'flatten_parameters'):
             best_model.flatten_parameters()
+
+        # Perform final eval and log with wandb
         train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
                                                                          test_dataloader, self.metric_clz,
                                                                          verbose=verbose)
-        if save_model:
-            path, save_dir = self.get_model_save_path(best_model, None)
-            if verbose:
-                print('Saving model to {:s}'.format(path))
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            torch.save(best_model.state_dict(), path)
-
         train_results.add_wandb_summary('train')
         val_results.add_wandb_summary('val')
         test_results.add_wandb_summary('test')
 
         return best_model, train_results, val_results, test_results
 
-    def train_multiple(self, n_repeats=10, seeds=None):
-        if seeds is not None and len(seeds) != n_repeats:
-            print('Provided incorrect number of seeds: {:d} given but expected {:d}'.format(len(seeds), n_repeats))
+    def train_single(self, verbose=True, trial=None, random_state=5):
+        train_dataset, val_dataset, test_dataset = next(self.dataset_clz.create_datasets(random_state=random_state))
+        train_dataloader = self.create_dataloader(train_dataset, True, 0)
+        val_dataloader = self.create_dataloader(val_dataset, False, 0)
+        test_dataloader = self.create_dataloader(test_dataset, False, 0)
+        return self.train_model(train_dataloader, val_dataloader, test_dataloader, verbose=verbose, trial=trial)
 
-        # Train multiple models
-        results = []
-        for i in range(n_repeats):
-            print('Repeat {:d}/{:d}'.format(i + 1, n_repeats))
-            repeat_seed = np.random.randint(low=1, high=1000) if seeds is None else seeds[i]
-            print('Seed: {:d}'.format(repeat_seed))
-            train_dataset, val_dataset, test_dataset = self.load_datasets(seed=repeat_seed)
-            train_dataloader = self.create_train_dataloader(train_dataset, batch_size=1)
-            model = self.create_model()
-            best_model, _, _, _ = self.train_model(model, train_dataloader, val_dataset)
-            del model
+    def train_multiple(self, training_config, n_repeats=5, verbose=True, random_state=5):
+        best_models = []
+        results_arr = np.empty((1, n_repeats, 3), dtype=object)
+        r = 0
+        for train_dataset, val_dataset, test_dataset in self.dataset_clz.create_datasets(random_state=random_state):
+            print('Repeat {:d}/{:d}'.format(r + 1, n_repeats))
 
-            if hasattr(best_model, 'flatten_parameters'):
-                best_model.flatten_parameters()
-            final_results = metrics.eval_complete(best_model, train_dataset, val_dataset, test_dataset,
-                                                  self.metric_clz, verbose=False)
-            results.append(final_results)
+            training_config['dataset_fold'] = r
+            wandb.init(
+                project=self.wandb_project_name,
+                group=self.wandb_group_name,
+                config=training_config,
+                reinit=True,
+            )
+            train_dataloader = self.create_dataloader(train_dataset, True, 0)
+            val_dataloader = self.create_dataloader(val_dataset, False, 0)
+            test_dataloader = self.create_dataloader(test_dataset, False, 0)
+            train_outputs = self.train_model(train_dataloader, val_dataloader, test_dataloader, verbose=verbose)
+            model = train_outputs[0]
+            repeat_results = train_outputs[1:]
+            best_models.append(model)
+            results_arr[:, r] = repeat_results
 
             # Save model
-            path, save_dir = self.get_model_save_path(best_model, i)
+            self.save_model(model, modifier=r, verbose=verbose)
+
+            r += 1
+            if r == n_repeats:
+                break
+
+        if verbose:
+            metrics.output_results([self.model_name], results_arr)
+
+        return models, results_arr
+
+    def save_model(self, model, modifier=None, verbose=True):
+        path, save_dir, file_name = get_default_save_path(self.dataset_name, self.model_name, modifier=modifier)
+        if verbose:
             print('Saving model to {:s}'.format(path))
-            if not os.path.exists(save_dir):
-                os.makedirs(save_dir)
-            torch.save(best_model.state_dict(), path)
-
-        metrics.output_results(results)
-
-    def get_model_save_path(self, model, repeat):
-        path, save_dir, _ = get_default_save_path(self.dataset_name, self.model_name,
-                                                  param_save_string=model.get_param_save_string(), repeat=repeat)
-        return path, save_dir
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        torch.save(model.state_dict(), path)
+        wandb.log_artifact(path, name=file_name, type='model')
