@@ -304,6 +304,26 @@ class FourMnistBagsDataset(MilDataset):
             return 1
         return 0
 
+    @staticmethod
+    def get_target_mask(instance_targets, clz):
+        mask_negative_idxs = []
+        if clz == 3:
+            mask_positive_idxs = (instance_targets != 0).nonzero()[0]
+        elif clz == 2:
+            mask_positive_idxs = (instance_targets == 2).nonzero()[0]
+            mask_negative_idxs = (instance_targets == 1).nonzero()[0]
+        elif clz == 1:
+            mask_positive_idxs = (instance_targets == 1).nonzero()[0]
+            mask_negative_idxs = (instance_targets == 2).nonzero()[0]
+        elif clz == 0:
+            mask_positive_idxs = (instance_targets == 0).nonzero()[0]
+        else:
+            raise ValueError('Invalid MNIST class {:}'.format(clz))
+        mask = np.zeros(len(instance_targets))
+        mask[mask_positive_idxs] = 1
+        mask[mask_negative_idxs] = -1
+        return mask
+
 
 class CountMnistBagsDataset(MilDataset):
 
