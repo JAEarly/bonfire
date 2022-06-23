@@ -2,13 +2,12 @@ import os
 
 import optuna
 import wandb
+from optuna import visualization as viz
 
 from bonfire.data.benchmark import get_dataset_clz
 from bonfire.model.benchmark import get_model_clz
 from bonfire.train.trainer import create_trainer_from_clzs
-from bonfire.util.yaml_util import combine_configs
-from bonfire.util.yaml_util import parse_yaml_config, parse_training_config, parse_tuning_config
-from optuna import visualization as viz
+from bonfire.util.yaml_util import parse_yaml_config, parse_training_config, parse_tuning_config, combine_configs
 
 TUNE_ROOT_DIR = "out/tune"
 
