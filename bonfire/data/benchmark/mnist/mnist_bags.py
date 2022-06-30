@@ -1,14 +1,13 @@
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
-from torch.utils.data import random_split, Subset
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from torch.utils.data import random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
 from bonfire.data.mil_dataset import MilDataset
 from bonfire.train.metrics import ClassificationMetric
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from collections import Counter
 
 
 def load_mnist(train):
@@ -194,11 +193,14 @@ class FourMnistBagsDataset(MilDataset):
         #  The mnist dataset is split in train/val/test first to ensure no overlap between the MIL datasets
         for train_split, val_split, test_split in cls.get_dataset_splits(mnist_dataset, random_state=random_state):
             train_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_train_bags,
-                                                mnist_dataset.data[train_split], mnist_dataset.targets[train_split])
+                                                mnist_dataset.data[train_split], mnist_dataset.targets[train_split],
+                                                random_state=random_state)
             val_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags,
-                                              mnist_dataset.data[val_split], mnist_dataset.targets[val_split])
+                                              mnist_dataset.data[val_split], mnist_dataset.targets[val_split],
+                                              random_state=random_state)
             test_dataset = cls._create_dataset(mean_bag_size, var_bag_size, num_test_bags,
-                                               mnist_dataset.data[test_split], mnist_dataset.targets[test_split])
+                                               mnist_dataset.data[test_split], mnist_dataset.targets[test_split],
+                                               random_state=random_state)
             yield train_dataset, val_dataset, test_dataset
 
     @classmethod
@@ -206,7 +208,10 @@ class FourMnistBagsDataset(MilDataset):
         raise NotImplementedError
 
     @classmethod
-    def _create_dataset(cls, mean_bag_size, var_bag_size, num_bags, original_data, original_targets, discrim_prob=0.1):
+    def _create_dataset(cls, mean_bag_size, var_bag_size, num_bags, original_data, original_targets, discrim_prob=0.1,
+                        random_state=5):
+        np.random.seed(random_state)
+
         # Split original data into relevant distributions
         # Clz 0 - Non Discrim: N/A    Discrim: 0 to 7
         # Clz 1 - Non Discrim: 0 to 7 Discrim: 8
