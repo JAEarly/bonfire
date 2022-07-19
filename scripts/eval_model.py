@@ -34,13 +34,6 @@ def run_evaluation():
     for model_idx, model_name in enumerate(models):
         print('  Evaluating {:s}'.format(model_name))
 
-        # Download models
-        # TODO this should be a util function
-        api = wandb.Api()
-        for repeat_idx in range(n_repeats):
-            artifact = api.artifact('Train_{:s}/{:s}_{:d}.pkl:latest'.format(dataset_name, model_name, repeat_idx))
-            artifact.file("models/{:s}/{:s}".format(dataset_name, model_name))
-
         config = parse_yaml_config(dataset_name)
         training_config = parse_training_config(config['training'], model_name)
         wandb.init(
