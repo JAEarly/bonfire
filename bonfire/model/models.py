@@ -7,8 +7,8 @@ from torch_geometric.data.data import Data
 from torch_geometric.nn import SAGEConv, dense_diff_pool
 from torch_geometric.utils import to_dense_adj, dense_to_sparse
 
-from bonfire.model import modules as mod
 from bonfire.model import aggregator as agg
+from bonfire.model import modules as mod
 
 
 class MultipleInstanceModel(nn.Module, ABC):
@@ -39,14 +39,6 @@ class MultipleInstanceModel(nn.Module, ABC):
 
     def suggest_train_params(self):
         return {}
-
-    @classmethod
-    def load_model(cls, device, path, *model_args):
-        model = cls(device, *model_args)
-        model.load_state_dict(torch.load(path))
-        model.to(device)
-        model.eval()
-        return model
 
 
 class MultipleInstanceNN(MultipleInstanceModel, ABC):

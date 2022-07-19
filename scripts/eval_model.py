@@ -1,15 +1,13 @@
 import argparse
 
 import numpy as np
-import torch
 import wandb
 
 from bonfire.data.benchmark import dataset_names
 from bonfire.model.benchmark import model_names
-from bonfire.train import get_default_save_path
 from bonfire.train.metrics import eval_complete, output_results
 from bonfire.train.trainer import create_trainer_from_names
-from bonfire.util import get_device
+from bonfire.util import get_device, load_model
 from bonfire.util.yaml_util import parse_yaml_config, parse_training_config
 
 device = get_device()
@@ -56,7 +54,7 @@ def evaluate(n_repeats, trainer, random_state=5):
         train_dataloader = trainer.create_dataloader(train_dataset, True, 0)
         val_dataloader = trainer.create_dataloader(val_dataset, False, 0)
         test_dataloader = trainer.create_dataloader(test_dataset, False, 0)
-        model = load_model(trainer.dataset_clz, trainer.model_clz, modifier=r)
+        model = load_model(device, trainer.dataset_clz.name, trainer.model_clz, modifier=r)
         results_list = eval_complete(model, train_dataloader, val_dataloader, test_dataloader,
                                      trainer.metric_clz, verbose=False)
         results_arr[r, :] = results_list
@@ -64,16 +62,6 @@ def evaluate(n_repeats, trainer, random_state=5):
         if r == n_repeats:
             break
     return results_arr
-
-
-# TODO should be util
-def load_model(dataset_clz, model_clz, modifier=None):
-    path, _, _ = get_default_save_path(dataset_clz.name, model_clz.name, modifier=modifier)
-    model = model_clz(device)
-    model.load_state_dict(torch.load(path))
-    model.to(device)
-    model.eval()
-    return model
 
 
 if __name__ == "__main__":

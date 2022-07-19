@@ -1,6 +1,5 @@
 import copy
 import inspect
-import os
 
 import numpy as np
 import optuna
@@ -13,7 +12,8 @@ from bonfire.data.benchmark import get_dataset_clz
 from bonfire.data.mil_graph_dataset import GraphDataloader
 from bonfire.model import models
 from bonfire.model.benchmark import get_model_clz
-from bonfire.train import metrics, get_default_save_path
+from bonfire.train import metrics
+from bonfire.util import save_model
 
 
 # -- UNUSED --
@@ -289,7 +289,7 @@ class Trainer:
             results_arr[:, r] = repeat_results
 
             # Save model
-            self.save_model(model, modifier=r, verbose=verbose)
+            save_model(self.dataset_name, model, modifier=r, verbose=verbose)
 
             r += 1
             if r == n_repeats:
@@ -299,12 +299,3 @@ class Trainer:
             metrics.output_results([self.model_name], results_arr)
 
         return models, results_arr
-
-    def save_model(self, model, modifier=None, verbose=True):
-        path, save_dir, file_name = get_default_save_path(self.dataset_name, self.model_name, modifier=modifier)
-        if verbose:
-            print('Saving model to {:s}'.format(path))
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        torch.save(model.state_dict(), path)
-        wandb.log_artifact(path, name=file_name, type='model')
