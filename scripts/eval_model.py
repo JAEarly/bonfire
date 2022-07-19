@@ -1,83 +1,86 @@
 import argparse
 
 import numpy as np
+import torch
+import wandb
 
-from bonfire.data.benchmark import get_dataset_clz
-from bonfire.model.benchmark import get_model_clz
-from scripts.train_model import DATASET_NAMES, MODEL_NAMES
-from bonfire.train import DEFAULT_SEEDS, get_default_save_path
+from bonfire.data.benchmark import dataset_names
+from bonfire.model.benchmark import model_names
+from bonfire.train import get_default_save_path
 from bonfire.train.metrics import eval_complete, output_results
+from bonfire.train.trainer import create_trainer_from_names
 from bonfire.util import get_device
+from bonfire.util.yaml_util import parse_yaml_config, parse_training_config
 
 device = get_device()
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Builtin PyTorch MIL training script.')
-    parser.add_argument('dataset_name', choices=DATASET_NAMES, help='The dataset to use.')
-    parser.add_argument('model_names', choices=MODEL_NAMES, nargs='+', help='The models to evaluate.')
-    parser.add_argument('-r', '--n_repeats', default=1, type=int, help='The number of models to evaluate (>=1).')
-    parser.add_argument('-s', '--seeds', default=",".join(str(s) for s in DEFAULT_SEEDS), type=str,
-                        help='The seeds for dataset generation. Should be at least as long as the number of repeats.'
-                             'Should match the seeds used during training.')
-    parser.add_argument('-v', '--verbose', default=False, action="store_true")
+    parser.add_argument('dataset_name', choices=dataset_names, help='The dataset to use.')
+    parser.add_argument('model_names', choices=model_names, nargs='+', help='The models to evaluate.')
+    parser.add_argument('-r', '--n_repeats', default=5, type=int, help='The number of models to evaluate (>=1).')
     args = parser.parse_args()
-    return args.dataset_name, args.model_names, args.n_repeats, args.seeds, args.verbose
+    return args.dataset_name, args.model_names, args.n_repeats
 
 
 def run_evaluation():
-    dataset_name, model_names, n_repeats, seeds, verbose = parse_args()
-    # Parse seed list
-    seeds = [int(s) for s in seeds.split(",")]
-    if len(seeds) < n_repeats:
-        raise ValueError('Not enough seeds provided for {:d} repeats'.format(n_repeats))
-    seeds = seeds[:n_repeats]
-
-    dataset_clz = get_dataset_clz(dataset_name)
+    dataset_name, models, n_repeats = parse_args()
 
     print('Getting results for dataset {:s}'.format(dataset_name))
-    results = np.empty((len(model_names), n_repeats, 3), dtype=object)
-    print('Running for models: {:}'.format(model_names))
-    for model_idx, model_name in enumerate(model_names):
+    print('Running for models: {:}'.format(models))
+
+    results = np.empty((len(models), n_repeats, 3), dtype=object)
+    for model_idx, model_name in enumerate(models):
         print('  Evaluating {:s}'.format(model_name))
-        model_clz = get_model_clz(dataset_name, model_name)
 
-        trainer = train_base.create_trainer(device, model_clz, dataset_clz)
+        # Download models
+        # TODO this should be a util function
+        api = wandb.Api()
+        for repeat_idx in range(n_repeats):
+            artifact = api.artifact('Train_{:s}/{:s}_{:d}.pkl:latest'.format(dataset_name, model_name, repeat_idx))
+            artifact.file("models/{:s}/{:s}".format(dataset_name, model_name))
 
-        if n_repeats == 1:
-            model_results = evaluate_single(dataset_name, model_clz, trainer, seeds[0], verbose)
-        else:
-            model_results = evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose)
+        config = parse_yaml_config(dataset_name)
+        training_config = parse_training_config(config['training'], model_name)
+        wandb.init(
+            config=training_config,
+            reinit=True,
+        )
+
+        trainer = create_trainer_from_names(device, model_name, dataset_name)
+        model_results = evaluate(n_repeats, trainer)
         results[model_idx, :, :] = model_results
-    output_results(model_names, results)
+    output_results(models, results, sort=False)
 
 
-def evaluate_single(dataset_name, model_clz, trainer, seed, verbose):
-    print('    Evaluating default model, seed: {:}'.format(seed))
-    model_path, _, _ = get_default_save_path(dataset_name, model_clz.__name__)
-    results = get_results(trainer, seed, model_clz, model_path, verbose)
-    return results
+def evaluate(n_repeats, trainer, random_state=5):
+    results_arr = np.empty((n_repeats, 3), dtype=object)
+    r = 0
+    for train_dataset, val_dataset, test_dataset in trainer.dataset_clz.create_datasets(random_state=random_state):
+        print('Repeat {:d}/{:d}'.format(r + 1, n_repeats))
+
+        train_dataloader = trainer.create_dataloader(train_dataset, True, 0)
+        val_dataloader = trainer.create_dataloader(val_dataset, False, 0)
+        test_dataloader = trainer.create_dataloader(test_dataset, False, 0)
+        model = load_model(trainer.dataset_clz, trainer.model_clz, modifier=r)
+        results_list = eval_complete(model, train_dataloader, val_dataloader, test_dataloader,
+                                     trainer.metric_clz, verbose=False)
+        results_arr[r, :] = results_list
+        r += 1
+        if r == n_repeats:
+            break
+    return results_arr
 
 
-def evaluate_multiple(dataset_name, model_clz, trainer, seeds, verbose):
-    results = np.empty((len(seeds), 3), dtype=object)
-    for i in range(len(seeds)):
-        seed = seeds[i]
-        print('    Model {:d}/{:d}; Seed {:d}'.format(i + 1, len(seeds), seed))
-        model_path, _, _ = get_default_save_path(dataset_name, model_clz.__name__, repeat=i)
-        results[i, :] = get_results(trainer, seed, model_clz, model_path, verbose)
-    return results
-
-
-def get_results(trainer, seed, model_clz, model_path, verbose):
-    results = np.empty((1, 3), dtype=object)
-    dataloaders = [trainer.create_dataloader(d, False, 1) for d in trainer.load_datasets(seed)]
-    train_dataloader, val_dataloader, test_dataloader = dataloaders
-    model = model_clz.load_model(device, model_path)
-    results_list = eval_complete(model, train_dataloader, val_dataloader, test_dataloader,
-                                 trainer.metric_clz, verbose=verbose)
-    results[0, :] = results_list
-    return results
+# TODO should be util
+def load_model(dataset_clz, model_clz, modifier=None):
+    path, _, _ = get_default_save_path(dataset_clz.name, model_clz.name, modifier=modifier)
+    model = model_clz(device)
+    model.load_state_dict(torch.load(path))
+    model.to(device)
+    model.eval()
+    return model
 
 
 if __name__ == "__main__":

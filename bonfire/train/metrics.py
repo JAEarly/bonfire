@@ -192,21 +192,21 @@ def eval_model(model, dataloader, metric):
         return bag_metric
 
 
-def output_results(model_names, results_arr):
+def output_results(model_names, results_arr, sort=True):
     n_models, n_repeats, n_splits = results_arr.shape
     assert n_models == len(model_names)
     assert n_splits == 3
 
     results_type = type(results_arr[0][0][0])
     if results_type == ClassificationMetric:
-        output_classification_results(model_names, results_arr)
+        output_classification_results(model_names, results_arr, sort=sort)
     elif issubclass(results_type, RegressionMetric):
-        output_regression_results(model_names, results_arr)
+        output_regression_results(model_names, results_arr, sort=sort)
     else:
         raise NotImplementedError('No results output for metrics {:}'.format(results_type))
 
 
-def output_classification_results(model_names, results_arr):
+def output_classification_results(model_names, results_arr, sort=True):
     n_models, n_repeats, _ = results_arr.shape
     results = np.empty((n_models, 6), dtype=object)
     mean_test_accuracies = []
@@ -223,7 +223,7 @@ def output_classification_results(model_names, results_arr):
         mean_test_accuracies.append(mean[5])
         for metric_idx in range(6):
             results[model_idx, metric_idx] = '{:.4f} +- {:.4f}'.format(mean[metric_idx], sem[metric_idx])
-    model_order = np.argsort(mean_test_accuracies)[::-1]
+    model_order = np.argsort(mean_test_accuracies)[::-1] if sort else list(range(len(model_names)))
     rows = [['Model Name', 'Train Loss', 'Train Accuracy', 'Val Loss', 'Val Accuracy', 'Test Loss', 'Test Accuracy']]
     for model_idx in model_order:
         rows.append([model_names[model_idx]] + list(results[model_idx, :]))
@@ -237,7 +237,7 @@ def output_classification_results(model_names, results_arr):
     print('Done!')
 
 
-def output_regression_results(model_names, results_arr):
+def output_regression_results(model_names, results_arr, sort=True):
     n_models, n_repeats, _ = results_arr.shape
     results = np.empty((n_models, 6), dtype=object)
     mean_test_mae_losses = []
@@ -254,7 +254,7 @@ def output_regression_results(model_names, results_arr):
         mean_test_mae_losses.append(mean[5])
         for metric_idx in range(6):
             results[model_idx, metric_idx] = '{:.4f} +- {:.4f}'.format(mean[metric_idx], sem[metric_idx])
-    model_order = np.argsort(mean_test_mae_losses)
+    model_order = np.argsort(mean_test_mae_losses) if sort else list(range(len(model_names)))
     rows = [['Model Name', 'Train MSE', 'Train MAE', 'Val MSE', 'Val MAE', 'Test MSE', 'Test MAE']]
     for model_idx in model_order:
         rows.append([model_names[model_idx]] + list(results[model_idx, :]))
