@@ -10,6 +10,11 @@ training:
     wd: 1.e-3
     dropout: 0.05
     agg_func: mean
+  AttentionNN:
+    lr: 1.e-4
+    wd: 1.e-6
+    dropout: 0.25
+    d_attn: 256
 tuning:
   default:
     lr: [1.e-6, 5.e-6, 1.e-5, 5.e-5, 1.e-4, 5.e-4, 1.e-3]
