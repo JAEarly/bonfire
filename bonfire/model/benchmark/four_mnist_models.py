@@ -79,6 +79,8 @@ class FourMnistGNN(models.ClusterGNN):
     def __init__(self, device):
         dropout = get_model_param("dropout")
         encoder = MnistEncoder(dropout)
+        # TODO should there be an extra param here to tune at least something other than dropout
+        exit(0)
         super().__init__(device, FourMnistBagsDataset.n_classes, FourMnistBagsDataset.n_expected_dims, encoder,
                          MNIST_D_ENC, MNIST_D_ENC, (MNIST_D_ENC,), MNIST_DS_AGG_HID, dropout)
 

@@ -1,7 +1,7 @@
+from .crc.crc_dataset import CrcDataset
 from .mnist.mnist_bags import FourMnistBagsDataset
 
-
-dataset_clzs = [FourMnistBagsDataset]
+dataset_clzs = [CrcDataset, FourMnistBagsDataset]
 dataset_names = [d.name for d in dataset_clzs]
 
 

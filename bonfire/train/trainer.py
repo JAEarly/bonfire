@@ -14,6 +14,7 @@ from bonfire.model import models
 from bonfire.model.benchmark import get_model_clz
 from bonfire.train import metrics
 from bonfire.util import save_model
+from time import sleep
 
 
 # -- UNUSED --
@@ -189,8 +190,10 @@ class Trainer:
         for epoch in range(n_epochs):
             print('Epoch {:d}/{:d}'.format(epoch + 1, n_epochs))
             # Train model for an epoch
+            sleep(0.1)
             epoch_outputs = self.train_epoch(model, optimizer, self.criterion, train_dataloader,
                                              val_dataloader if epoch % patience_interval == 0 else None)
+            sleep(0.1)
             epoch_train_metrics, epoch_val_metrics = epoch_outputs
 
             # Early stopping
@@ -249,6 +252,8 @@ class Trainer:
             best_model.flatten_parameters()
 
         # Perform final eval and log with wandb
+        print('Training Finished')
+        sleep(0.1)
         train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
                                                                          test_dataloader, self.metric_clz,
                                                                          verbose=verbose)

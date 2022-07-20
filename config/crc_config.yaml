@@ -3,7 +3,7 @@ training:
     lr: 1.e-3
     wd: 1.e-4
     n_epochs: 100
-    patience: 5
+    patience: 3
     patience_interval: 2
 tuning:
   default:
@@ -14,3 +14,5 @@ tuning:
     agg_func: [mean, max]
   EmbeddingSpaceNN:
     agg_func: [mean, max]
+  AttentionNN:
+    d_attn: [32, 64, 128, 256]
