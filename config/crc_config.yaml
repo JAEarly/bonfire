@@ -3,7 +3,7 @@ training:
     lr: 1.e-3
     wd: 1.e-4
     n_epochs: 100
-    patience: 3
+    patience: 5
     patience_interval: 2
 tuning:
   default:
