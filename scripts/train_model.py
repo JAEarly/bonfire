@@ -13,7 +13,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Builtin PyTorch MIL training script.')
     parser.add_argument('dataset_name', choices=dataset_names, help='The dataset to use.')
     parser.add_argument('model_name', choices=model_names, help='The model to train.')
-    parser.add_argument('-r', '--n_repeats', default=1, type=int, help='The number of models to train (>=1).')
+    parser.add_argument('-r', '--n_repeats', default=5, type=int, help='The number of models to train (>=1).')
     args = parser.parse_args()
     return args.dataset_name, args.model_name, args.n_repeats
 
