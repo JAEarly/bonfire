@@ -71,7 +71,7 @@ class CrcDataset(MilDataset):
             yield train_split, val_split, test_split
 
     @classmethod
-    def create_datasets(cls, patch_size=27, augment_train=True, random_state=5, verbose=False):
+    def create_datasets(cls, patch_size=27, augment_train=True, random_state=5, verbose=False, num_test_bags=None):
         bags, targets, ids = load_crc_bags(patch_size, verbose=verbose)
 
         for train_split, val_split, test_split in cls.get_dataset_splits(bags, targets, random_state=random_state):
@@ -107,11 +107,6 @@ class CrcDataset(MilDataset):
             yield train_dataset, val_dataset, test_dataset
 
     def __getitem__(self, index):
-        instances = self._load_instances(index)
-        target = self.targets[index]
-        return instances, target
-
-    def get_bag_verbose(self, index):
         instances = self._load_instances(index)
         target = self.targets[index]
         instance_targets = self.instance_targets[index]

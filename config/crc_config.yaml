@@ -12,7 +12,7 @@ training:
     agg_func: max
   AttentionNN:
     lr: 1.e-3
-    wd: 1.e-5
+    wd: 1.e-6
     dropout: 0.3
     d_attn: 64
 tuning:

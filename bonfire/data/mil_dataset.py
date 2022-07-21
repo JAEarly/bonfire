@@ -48,7 +48,7 @@ class MilDataset(Dataset, ABC):
 
     @classmethod
     @abstractmethod
-    def create_datasets(cls):
+    def create_datasets(cls, num_test_bags=None):
         pass
 
     @classmethod
