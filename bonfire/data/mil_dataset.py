@@ -56,6 +56,11 @@ class MilDataset(Dataset, ABC):
     def create_complete_dataset(cls):
         pass
 
+    @classmethod
+    @abstractmethod
+    def get_target_mask(cls, instance_targets, clz):
+        pass
+
     def summarise(self, out_clz_dist=True):
         clz_dist = Counter(np.asarray(self.targets))
         print('- MIL Dataset Summary -')

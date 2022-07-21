@@ -39,10 +39,6 @@ augmentation_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
 
 class CrcDataset(MilDataset):
 
-    @classmethod
-    def create_complete_dataset(cls):
-        pass
-
     name = 'crc'
     d_in = 1200
     n_expected_dims = 4  # i x c x h x w
@@ -105,6 +101,17 @@ class CrcDataset(MilDataset):
 
             # Yield three split datasets
             yield train_dataset, val_dataset, test_dataset
+
+    @classmethod
+    def create_complete_dataset(cls):
+        raise NotImplementedError
+
+    @classmethod
+    def get_target_mask(cls, instance_targets, clz):
+        mask = []
+        for t in instance_targets:
+            mask.append(1 if clz in t else (0 if t else None))
+        return np.asarray(mask)
 
     def __getitem__(self, index):
         instances = self._load_instances(index)

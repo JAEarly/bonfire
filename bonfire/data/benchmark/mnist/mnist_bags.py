@@ -309,8 +309,8 @@ class FourMnistBagsDataset(MilDataset):
             return 1
         return 0
 
-    @staticmethod
-    def get_target_mask(instance_targets, clz):
+    @classmethod
+    def get_target_mask(cls, instance_targets, clz):
         mask_negative_idxs = []
         if clz == 3:
             mask_positive_idxs = (instance_targets != 0).nonzero()[0]
