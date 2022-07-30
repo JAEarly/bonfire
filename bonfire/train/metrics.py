@@ -53,6 +53,14 @@ class Metric(ABC):
     def out(self):
         pass
 
+    @abstractmethod
+    def wandb_log(self, dataset_split, commit):
+        pass
+
+    @abstractmethod
+    def wandb_summary(self, dataset_split):
+        pass
+
 
 class ClassificationMetric(Metric):
 
@@ -95,7 +103,15 @@ class ClassificationMetric(Metric):
         print('Loss: {:.3f}'.format(self.loss))
         print(self.conf_mat)
 
-    def add_wandb_summary(self, dataset_split):
+    def wandb_log(self, dataset_split, commit):
+        log_dict = {}
+        if self.loss is not None:
+            log_dict['{:s}_loss'.format(dataset_split)] = self.loss
+        if self.accuracy is not None:
+            log_dict['{:s}_acc'.format(dataset_split)] = self.accuracy
+        wandb.log(log_dict, commit=commit)
+
+    def wandb_summary(self, dataset_split):
         wandb.summary["{:s}_acc".format(dataset_split)] = self.accuracy
         wandb.summary["{:s}_loss".format(dataset_split)] = self.loss
 
@@ -132,6 +148,19 @@ class RegressionMetric(Metric):
     def out(self):
         print('MSE Loss: {:.3f}'.format(self.mse_loss))
         print('MAE Loss: {:.3f}'.format(self.mae_loss))
+
+    def wandb_log(self, dataset_split, commit):
+        log_dict = {}
+        if self.mse_loss is not None:
+            log_dict['{:s}_mse'.format(dataset_split)] = self.mse_loss
+        if self.mae_loss is not None:
+            log_dict['{:s}_mae'.format(dataset_split)] = self.mae_loss
+        print(log_dict)
+        wandb.log(log_dict, commit=commit)
+
+    def wandb_summary(self, dataset_split):
+        wandb.summary["{:s}_mse".format(dataset_split)] = self.mse_loss
+        wandb.summary["{:s}_mae".format(dataset_split)] = self.mae_loss
 
 
 class CountRegressionMetric(RegressionMetric):

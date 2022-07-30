@@ -210,10 +210,8 @@ class Trainer:
                         if patience_tracker == patience:
                             early_stopped = True
 
-                    # Update wandb tracking
-                    wandb.log({'val_loss': epoch_val_metrics.loss,
-                               'val_acc': epoch_val_metrics.accuracy},
-                              commit=False)
+                    # Update wandb tracking for val
+                    epoch_val_metrics.wandb_log('val', commit=False)
 
                     # Update optuna tracking
                     if trial is not None:
@@ -224,7 +222,8 @@ class Trainer:
             else:
                 best_model = copy.deepcopy(model)
 
-            wandb.log({'train_loss': epoch_train_metrics.loss}, commit=True)
+            # Updated wandb tracking for train
+            epoch_train_metrics.wandb_log('train', commit=True)
 
             # Update progress
             train_metrics.append(epoch_train_metrics)
@@ -233,16 +232,19 @@ class Trainer:
             print('   Val: {:s}'.format(epoch_val_metrics.short_string_repr() if epoch_val_metrics else 'None'))
 
             if early_stopped:
+                print('Training Finished - Early Stopping')
                 wandb.summary["finish_case"] = "early stopped"
                 wandb.summary["final_epoch"] = epoch
                 break
 
             if pruned:
+                print('Training Finished - Pruned')
                 wandb.summary["finish_case"] = "pruned"
                 wandb.summary["final_epoch"] = epoch
                 wandb.finish(quiet=True)
                 raise optuna.exceptions.TrialPruned()
         else:
+            print('Training Finished - Epoch Limit')
             wandb.summary["finish_case"] = "epoch limit"
             wandb.summary["final_epoch"] = n_epochs - 1
 
@@ -252,14 +254,13 @@ class Trainer:
             best_model.flatten_parameters()
 
         # Perform final eval and log with wandb
-        print('Training Finished')
         sleep(0.1)
         train_results, val_results, test_results = metrics.eval_complete(best_model, train_dataloader, val_dataloader,
                                                                          test_dataloader, self.metric_clz,
                                                                          verbose=verbose)
-        train_results.add_wandb_summary('train')
-        val_results.add_wandb_summary('val')
-        test_results.add_wandb_summary('test')
+        train_results.wandb_summary('train')
+        val_results.wandb_summary('val')
+        test_results.wandb_summary('test')
 
         return best_model, train_results, val_results, test_results
 
