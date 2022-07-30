@@ -155,7 +155,6 @@ class RegressionMetric(Metric):
             log_dict['{:s}_mse'.format(dataset_split)] = self.mse_loss
         if self.mae_loss is not None:
             log_dict['{:s}_mae'.format(dataset_split)] = self.mae_loss
-        print(log_dict)
         wandb.log(log_dict, commit=commit)
 
     def wandb_summary(self, dataset_split):

@@ -14,3 +14,5 @@ tuning:
     agg_func: [mean, max, sum]
   EmbeddingSpaceNN:
     agg_func: [mean, max, sum]
+  AttentionNN:
+    d_attn: [32, 64, 128, 256]
