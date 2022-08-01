@@ -268,25 +268,27 @@ class DgrDataset(MilDataset):
 
         patches_df.to_csv("data/DGR/patch_{:d}_{:d}_data.csv".format(grid_size, patch_size), index=False)
 
-    # @classmethod
-    # def baseline_performance(cls):
-    #     train_dataset, val_dataset, test_dataset = cls.create_datasets()
-    #     train_mean_target = train_dataset.targets.mean()
-    #
-    #     def performance_for_dataset(pred, dataset):
-    #         targets = dataset.targets
-    #         preds = torch.ones_like(targets)
-    #         preds *= pred
-    #         metric = RegressionMetric.calculate_metric(preds, targets, None)
-    #         print('MSE Loss: {:.4f}'.format(metric.mse_loss))
-    #         print('MAE Loss: {:.4f}'.format(metric.mae_loss))
-    #
-    #     print('-- Train --')
-    #     performance_for_dataset(train_mean_target, train_dataset)
-    #     print('-- Val --')
-    #     performance_for_dataset(train_mean_target, val_dataset)
-    #     print('-- Test --')
-    #     performance_for_dataset(train_mean_target, test_dataset)
+    @classmethod
+    def baseline_performance(cls):
+        for train_dataset, val_dataset, test_dataset in DgrDataset.create_datasets():
+            train_mean_target = train_dataset.targets.mean(dim=0)
+
+            def performance_for_dataset(pred, dataset):
+                targets = dataset.targets
+                preds = torch.ones_like(targets)
+                preds *= pred
+                metric = RegressionMetric.calculate_metric(preds, targets, None)
+                print('MSE Loss: {:.4f}'.format(metric.mse_loss))
+                print('MAE Loss: {:.4f}'.format(metric.mae_loss))
+
+            print('-- Train --')
+            performance_for_dataset(train_mean_target, train_dataset)
+            print('-- Val --')
+            performance_for_dataset(train_mean_target, val_dataset)
+            print('-- Test --')
+            performance_for_dataset(train_mean_target, test_dataset)
+
+            exit(0)
 
     @classmethod
     def calculate_dataset_normalisation(cls):
@@ -307,13 +309,4 @@ class DgrDataset(MilDataset):
 
 
 if __name__ == "__main__":
-    # DGRDataset.extract_grid_patches()
-    for train, val, test in DgrDataset.create_datasets():
-        print('Train')
-        train.summarise()
-        print('Val')
-        val.summarise()
-        print('Test')
-        test.summarise()
-
-        exit(0)
+    DgrDataset.baseline_performance()
